@@ -7,9 +7,9 @@ namespace RemotePC.ViewModels;
 
 public partial class PcViewModel : ObservableObject
 {
-    private static readonly TimeSpan BootTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan BootTimeout = TimeSpan.FromSeconds(45);
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan RustDeskStartupDelay = TimeSpan.FromSeconds(12);
+    private static readonly TimeSpan RustDeskStartupDelay = TimeSpan.FromSeconds(10);
 
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
@@ -149,7 +149,7 @@ public partial class PcViewModel : ObservableObject
             if (!IsOnline)
             {
                 StatusText = "Opening RustDesk...";
-                ErrorMessage = "Wake command was sent, but Tailscale did not confirm the PC is online.";
+                ErrorMessage = "Wake command was sent, but Tailscale did not confirm the PC is online. Opening RustDesk anyway.";
                 await OpenRustDeskAsync(cancellationToken);
                 return;
             }
