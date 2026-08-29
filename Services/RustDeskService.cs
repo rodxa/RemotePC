@@ -11,7 +11,8 @@ public sealed class RustDeskService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrWhiteSpace(rustDeskId))
+        var normalizedRustDeskId = NormalizeRustDeskId(rustDeskId);
+        if (string.IsNullOrWhiteSpace(normalizedRustDeskId))
         {
             throw new InvalidOperationException("RustDesk ID not configured");
         }
@@ -22,14 +23,14 @@ public sealed class RustDeskService
             throw new FileNotFoundException("RustDesk is not installed. Install RustDesk or check its installation path.");
         }
 
-        if (TryLaunchRustDeskUri(rustDeskId.Trim()))
+        if (TryLaunchRustDeskUri(normalizedRustDeskId))
         {
             return Task.CompletedTask;
         }
 
         var startInfo = CreateStartInfo(executable);
         startInfo.ArgumentList.Add("--connect");
-        startInfo.ArgumentList.Add(rustDeskId.Trim());
+        startInfo.ArgumentList.Add(normalizedRustDeskId);
 
         if (Process.Start(startInfo) is null)
         {
@@ -37,6 +38,16 @@ public sealed class RustDeskService
         }
 
         return Task.CompletedTask;
+    }
+
+    public static string NormalizeRustDeskId(string? rustDeskId)
+    {
+        if (string.IsNullOrWhiteSpace(rustDeskId))
+        {
+            return string.Empty;
+        }
+
+        return string.Concat(rustDeskId.Where(static c => !char.IsWhiteSpace(c)));
     }
 
     private static bool TryLaunchRustDeskUri(string rustDeskId)

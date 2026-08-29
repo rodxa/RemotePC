@@ -114,7 +114,7 @@ public partial class PcViewModel : ObservableObject
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(Device.RustDeskId))
+            if (string.IsNullOrWhiteSpace(RustDeskService.NormalizeRustDeskId(Device.RustDeskId)))
             {
                 StatusText = "RustDesk ID not configured";
                 ErrorMessage = "Add this PC's RustDesk ID in Supabase.";
