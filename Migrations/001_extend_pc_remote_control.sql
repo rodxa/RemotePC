@@ -98,3 +98,7 @@ using (enabled = true);
 
 -- No UPDATE policy is added intentionally. Wake requests must go through wake_pc(target_id),
 -- which changes only command_id and updated_at for the requested enabled PC.
+
+-- Ask PostgREST/Supabase API to refresh its function/schema cache so wake_pc is
+-- available to /rest/v1/rpc/wake_pc immediately after running this migration.
+notify pgrst, 'reload schema';
