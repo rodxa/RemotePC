@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Local configuration
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+
+# IDE/editor files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs and diagnostics
+*.log
+*.binlog
+TestResults/
+coverage/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

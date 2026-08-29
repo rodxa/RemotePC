@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemotePC.ViewModels"
+        x:Class="RemotePC.Views.SettingsWindow"
+        x:DataType="vm:SettingsWindowViewModel"
+        Title="RemotePC Settings"
+        Width="520"
+        Height="360"
+        MinWidth="420"
+        MinHeight="330"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,12,0,6" />
+    </Style>
+    <Style Selector="TextBlock.subtle">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+    <StackPanel>
+      <TextBlock Text="Supabase Settings"
+                 FontSize="20"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="{Binding SettingsPath}"
+                 Classes="subtle"
+                 Margin="0,4,0,4"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="1"
+                Margin="0,8,0,0">
+      <TextBlock Text="Supabase URL"
+                 Classes="label" />
+      <TextBox Text="{Binding SupabaseUrl}"
+               PlaceholderText="https://YOUR_PROJECT.supabase.co" />
+
+      <TextBlock Text="Publishable Key"
+                 Classes="label" />
+      <TextBox Text="{Binding PublishableKey}"
+               PlaceholderText="sb_publishable_..."
+               PasswordChar="*" />
+
+      <Border Margin="0,14,0,0"
+              Padding="10"
+              CornerRadius="8"
+              Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+              IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Classes="error" />
+      </Border>
+    </StackPanel>
+
+    <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,16,0,0">
+      <Button Content="Cancel"
+              Command="{Binding CancelCommand}" />
+      <Button Content="Save"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>
