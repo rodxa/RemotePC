@@ -15,6 +15,7 @@ public partial class PcViewModel : ObservableObject
     private readonly PcStatusService _statusService;
     private readonly RustDeskService _rustDeskService;
     private readonly CancellationToken _applicationCancellationToken;
+    private CancellationTokenSource? _connectCts;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
@@ -57,7 +58,7 @@ public partial class PcViewModel : ObservableObject
 
     public string LastSeenText => Device.LastSeen is null ? "No heartbeat yet" : $"Last seen {Device.LastSeen.Value.LocalDateTime:g}";
 
-    public string ButtonText => IsCurrentMachine ? "This PC" : "Connect";
+    public string ButtonText => IsBusy ? "Cancel" : !Device.Enabled ? "Disabled" : IsCurrentMachine ? "This PC" : "Connect";
 
     public bool HasDisplayName => !string.IsNullOrWhiteSpace(Device.DisplayName);
 
@@ -68,6 +69,11 @@ public partial class PcViewModel : ObservableObject
     public string TroubleshootingText => GetTroubleshootingText();
 
     partial void OnIsOnlineChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ButtonText));
+    }
+
+    partial void OnIsBusyChanged(bool value)
     {
         OnPropertyChanged(nameof(ButtonText));
     }
@@ -99,6 +105,13 @@ public partial class PcViewModel : ObservableObject
 
         ErrorMessage = null;
         IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
+        if (!Device.Enabled)
+        {
+            IsOnline = false;
+            StatusText = "Disabled";
+            return;
+        }
+
         if (IsCurrentMachine)
         {
             IsOnline = true;
@@ -118,15 +131,18 @@ public partial class PcViewModel : ObservableObject
         StatusText = IsOnline ? "Online" : "Offline";
     }
 
-    [RelayCommand(CanExecute = nameof(CanConnect))]
+    [RelayCommand(CanExecute = nameof(CanConnect), AllowConcurrentExecutions = true)]
     private async Task ConnectAsync()
     {
         if (IsBusy)
         {
+            StatusText = "Cancelling...";
+            _connectCts?.Cancel();
             return;
         }
 
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_applicationCancellationToken);
+        _connectCts = linkedCts;
         var cancellationToken = linkedCts.Token;
 
         IsBusy = true;
@@ -134,6 +150,14 @@ public partial class PcViewModel : ObservableObject
 
         try
         {
+            if (!Device.Enabled)
+            {
+                IsOnline = false;
+                StatusText = "Disabled";
+                ErrorMessage = "This PC is disabled in Supabase.";
+                return;
+            }
+
             IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
             if (IsCurrentMachine)
             {
@@ -198,6 +222,11 @@ public partial class PcViewModel : ObservableObject
         {
             StatusText = "Cancelled";
         }
+        catch (OperationCanceledException)
+        {
+            IsOnline = await SafeCheckOnlineAsync();
+            StatusText = IsOnline ? "Online" : "Cancelled";
+        }
         catch (FileNotFoundException ex)
         {
             IsOnline = await SafeCheckOnlineAsync();
@@ -212,13 +241,18 @@ public partial class PcViewModel : ObservableObject
         }
         finally
         {
+            if (ReferenceEquals(_connectCts, linkedCts))
+            {
+                _connectCts = null;
+            }
+
             IsBusy = false;
         }
     }
 
     private bool CanConnect()
     {
-        return !IsBusy && !IsCurrentMachine;
+        return IsBusy || (!IsCurrentMachine && Device.Enabled);
     }
 
     private async Task<bool> IsCurrentMachineAsync(CancellationToken cancellationToken)
@@ -308,6 +342,11 @@ public partial class PcViewModel : ObservableObject
             return "Check: install RustDesk on this laptop, then retry.";
         }
 
+        if (StatusText.Equals("Disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Check: set enabled to true in Supabase to allow connections.";
+        }
+
         if (StatusText.Equals("This PC", StringComparison.OrdinalIgnoreCase))
         {
             return "This row matches the computer you are using.";
@@ -316,6 +355,11 @@ public partial class PcViewModel : ObservableObject
         if (StatusText.Equals("Failed to wake", StringComparison.OrdinalIgnoreCase))
         {
             return "Check: PC power, BIOS Wake-on-LAN, ESP32 polling, and Ethernet.";
+        }
+
+        if (StatusText.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            return "The connect attempt was stopped. Press Connect to try again.";
         }
 
         if (ErrorMessage?.Contains("Wake command", StringComparison.OrdinalIgnoreCase) == true ||

@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemotePC.ViewModels"
+        x:Class="RemotePC.Views.AddDeviceWindow"
+        x:DataType="vm:AddDeviceWindowViewModel"
+        Title="{Binding WindowTitle}"
+        Width="520"
+        Height="470"
+        MinWidth="420"
+        MinHeight="400"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,12,0,6" />
+    </Style>
+    <Style Selector="TextBlock.subtle">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+    <StackPanel>
+      <TextBlock Text="{Binding HeaderText}"
+                 FontSize="20"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="Store the RustDesk ID only. Do not add the password."
+                 Classes="subtle"
+                 Margin="0,4,0,4" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="1"
+                Margin="0,8,0,0">
+      <TextBlock Text="Device Name"
+                 Classes="label" />
+      <TextBox Text="{Binding DeviceName}"
+               PlaceholderText="gaming-pc" />
+
+      <TextBlock Text="Display Name"
+                 Classes="label" />
+      <TextBox Text="{Binding DisplayName}"
+               PlaceholderText="Gaming PC" />
+
+      <TextBlock Text="Tailscale IP"
+                 Classes="label" />
+      <TextBox Text="{Binding TailscaleIp}"
+               PlaceholderText="100.x.y.z" />
+
+      <TextBlock Text="RustDesk ID"
+                 Classes="label" />
+      <TextBox Text="{Binding RustDeskId}"
+               PlaceholderText="123456789" />
+
+      <CheckBox Content="Enabled"
+                IsChecked="{Binding Enabled}"
+                Margin="0,14,0,0" />
+
+      <TextBlock Text="{Binding ErrorMessage}"
+                 Classes="error"
+                 Margin="0,12,0,0"
+                 IsVisible="{Binding HasError}" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,16,0,0">
+      <Button Content="Cancel"
+              Command="{Binding CancelCommand}" />
+      <Button Content="{Binding SaveButtonText}"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

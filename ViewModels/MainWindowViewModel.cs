@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using RemotePC.Models;
 using RemotePC.Services;
 
 namespace RemotePC.ViewModels;
@@ -60,6 +61,122 @@ public partial class MainWindowViewModel : ObservableObject
         await RefreshAsync();
     }
 
+    public async Task AddDeviceAsync(PcDeviceCreateRequest request)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        ErrorMessage = null;
+        OnPropertyChanged(nameof(ShowEmptyState));
+
+        try
+        {
+            var pcId = await _supabaseService.AddPcAsync(request, _applicationCancellationToken);
+            var existingPc = Pcs.FirstOrDefault(pc => pc.Device.Id == pcId);
+            if (existingPc is not null)
+            {
+                await existingPc.RefreshStatusAsync(_applicationCancellationToken);
+                return;
+            }
+
+            var device = new PcDevice
+            {
+                Id = pcId,
+                DeviceName = request.DeviceName,
+                DisplayName = request.DisplayName,
+                CommandId = 0,
+                TailscaleIp = request.TailscaleIp,
+                RustDeskId = request.RustDeskId,
+                Enabled = true,
+                SortOrder = Pcs.Count == 0 ? 0 : Pcs.Max(pc => pc.Device.SortOrder) + 10,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            var pc = new PcViewModel(
+                device,
+                _supabaseService,
+                _statusService,
+                _rustDeskService,
+                _applicationCancellationToken);
+
+            Pcs.Add(pc);
+            OnPropertyChanged(nameof(HasPcs));
+            OnPropertyChanged(nameof(ShowEmptyState));
+            await pc.RefreshStatusAsync(_applicationCancellationToken);
+        }
+        catch (Exception ex) when (ex is SupabaseException or HttpRequestException or TaskCanceledException)
+        {
+            ErrorMessage = ex.Message;
+            return;
+        }
+        finally
+        {
+            IsLoading = false;
+            OnPropertyChanged(nameof(ShowEmptyState));
+        }
+    }
+
+    public async Task UpdateDeviceAsync(PcViewModel pc, PcDeviceCreateRequest request)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        ErrorMessage = null;
+        OnPropertyChanged(nameof(ShowEmptyState));
+
+        try
+        {
+            await _supabaseService.UpdatePcAsync(pc.Device.Id, request, _applicationCancellationToken);
+        }
+        catch (Exception ex) when (ex is SupabaseException or HttpRequestException or TaskCanceledException)
+        {
+            ErrorMessage = ex.Message;
+            return;
+        }
+        finally
+        {
+            IsLoading = false;
+            OnPropertyChanged(nameof(ShowEmptyState));
+        }
+
+        await RefreshAsync();
+    }
+
+    public async Task DeleteDeviceAsync(PcViewModel pc)
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        ErrorMessage = null;
+        OnPropertyChanged(nameof(ShowEmptyState));
+
+        try
+        {
+            await _supabaseService.DeletePcAsync(pc.Device.Id, _applicationCancellationToken);
+            Pcs.Remove(pc);
+            OnPropertyChanged(nameof(HasPcs));
+            OnPropertyChanged(nameof(ShowEmptyState));
+        }
+        catch (Exception ex) when (ex is SupabaseException or HttpRequestException or TaskCanceledException)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+            OnPropertyChanged(nameof(ShowEmptyState));
+        }
+    }
+
     partial void OnErrorMessageChanged(string? value)
     {
         OnPropertyChanged(nameof(HasError));
@@ -88,7 +205,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var devices = await _supabaseService.GetEnabledPcsAsync(cancellationToken);
+            var devices = await _supabaseService.GetPcsAsync(cancellationToken);
             Pcs.Clear();
 
             foreach (var device in devices)
@@ -142,9 +259,12 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         if (ErrorMessage?.Contains("wake_pc", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("add_pc_device", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("update_pc_device", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("delete_pc_device", StringComparison.OrdinalIgnoreCase) == true ||
             ErrorMessage?.Contains("PGRST202", StringComparison.OrdinalIgnoreCase) == true)
         {
-            return "Steps: run the SQL migration, confirm wake_pc exists, reload schema.";
+            return "Steps: run the SQL migration, confirm the RPC exists, reload schema.";
         }
 
         if (!string.IsNullOrWhiteSpace(ErrorMessage))

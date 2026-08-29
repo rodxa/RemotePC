@@ -1,6 +1,6 @@
 # RemotePC
 
-RemotePC is a small Avalonia desktop utility for waking and connecting to home PCs through a Supabase-driven command table. It loads enabled PCs from Supabase, checks each Tailscale IP concurrently, sends an atomic wake command when needed, waits for the PC to become reachable, and then opens RustDesk.
+RemotePC is a small Avalonia desktop utility for waking and connecting to home PCs through a Supabase-driven command table. It loads PCs from Supabase, checks each Tailscale IP concurrently, sends an atomic wake command when needed, waits for the PC to become reachable, and then opens RustDesk.
 
 ## Requirements
 
@@ -26,11 +26,13 @@ Use a Supabase publishable key only. Do not use `service_role` or any secret key
 
 ## SQL Migration
 
-Run [Migrations/001_extend_pc_remote_control.sql](Migrations/001_extend_pc_remote_control.sql) in the Supabase SQL editor. It adds the app fields with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, safely renames or merges `parsec_peer_id` into `rustdesk_id`, enables RLS, grants read access to enabled rows, and creates the `wake_pc(target_id bigint)` RPC function that atomically increments `command_id`.
+Run [Migrations/001_extend_pc_remote_control.sql](Migrations/001_extend_pc_remote_control.sql) in the Supabase SQL editor. It adds the app fields with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, safely renames or merges `parsec_peer_id` into `rustdesk_id`, enables RLS, grants read access to rows, and creates the `wake_pc(target_id bigint)`, `add_pc_device(...)`, `update_pc_device(...)`, and `delete_pc_device(...)` RPC functions.
 
 ## Adding Another PC
 
-Insert a new row in `public.pc_remote_control` with a unique `device_name`, optional `display_name`, the PC's `tailscale_ip`, the PC's `rustdesk_id`, `enabled = true`, and a `sort_order`. The app is data-driven; refresh or restart and the new PC appears without C# changes.
+Use the plus button in the app to add a PC. Use each card's edit button to update its name, Tailscale IP, RustDesk ID, or enabled state. Use each card's delete button to remove its Supabase row after confirmation. The app uses RPCs for these changes and keeps direct table writes closed.
+
+The app is data-driven; PCs added through the app or directly in Supabase appear without C# changes. Rows with `enabled = false` still appear, but show as disabled and cannot be connected.
 
 ## ESP32 Integration
 

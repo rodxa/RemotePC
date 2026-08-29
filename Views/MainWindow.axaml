@@ -69,6 +69,14 @@
                   Orientation="Horizontal"
                   Spacing="8">
         <Button Classes="icon-button"
+                Click="OnAddDeviceClick"
+                ToolTip.Tip="Add PC">
+          <PathIcon Width="18"
+                    Height="18"
+                    Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+        </Button>
+
+        <Button Classes="icon-button"
                 Click="OnOpenSettingsClick"
                 ToolTip.Tip="Settings">
           <PathIcon Width="18"
@@ -177,12 +185,32 @@
                              Margin="0,8,0,0"
                              IsVisible="{Binding HasTroubleshooting}" />
 
-                  <Button Grid.Row="4"
-                          Grid.Column="1"
-                          Margin="0,12,0,0"
-                          MinWidth="92"
-                          Command="{Binding ConnectCommand}"
-                          Content="{Binding ButtonText}" />
+                  <StackPanel Grid.Row="4"
+                              Grid.ColumnSpan="2"
+                              Orientation="Horizontal"
+                              HorizontalAlignment="Right"
+                              Spacing="8"
+                              Margin="0,12,0,0">
+                    <Button Classes="icon-button"
+                            Click="OnEditDeviceClick"
+                            ToolTip.Tip="Edit PC">
+                      <PathIcon Width="17"
+                                Height="17"
+                                Data="M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04Z" />
+                    </Button>
+
+                    <Button Classes="icon-button"
+                            Click="OnDeleteDeviceClick"
+                            ToolTip.Tip="Delete PC">
+                      <PathIcon Width="17"
+                                Height="17"
+                                Data="M6,19C6,20.1 6.9,21 8,21H16C17.1,21 18,20.1 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z" />
+                    </Button>
+
+                    <Button MinWidth="92"
+                            Command="{Binding ConnectCommand}"
+                            Content="{Binding ButtonText}" />
+                  </StackPanel>
                 </Grid>
               </Border>
             </DataTemplate>
