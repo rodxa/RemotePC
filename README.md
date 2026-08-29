@@ -48,7 +48,7 @@ Never put the RustDesk password in Supabase, `appsettings.json`, or source code.
 
 Find the home PC's RustDesk ID and store only that ID in `public.pc_remote_control.rustdesk_id`. Install RustDesk on the laptop/client machine too, then test a connection while the home PC is at the Windows lock screen.
 
-RemotePC looks for RustDesk in common Windows locations under `C:\Program Files\RustDesk`, `C:\Program Files (x86)\RustDesk`, `%LOCALAPPDATA%\Programs\RustDesk`, `%LOCALAPPDATA%\RustDesk`, and the current process `PATH`. If the installed RustDesk build exposes a supported direct-connect CLI option such as `--connect`, RemotePC uses it with the row's `rustdesk_id`. If the local build does not expose a reliable direct-connect option, RemotePC opens RustDesk normally.
+RemotePC looks for RustDesk in common Windows locations under `C:\Program Files\RustDesk`, `C:\Program Files (x86)\RustDesk`, `%LOCALAPPDATA%\Programs\RustDesk`, `%LOCALAPPDATA%\RustDesk`, and the current process `PATH`. It launches RustDesk with `--connect <rustdesk_id>` so the session opens for the selected Supabase row.
 
 ## Architecture
 

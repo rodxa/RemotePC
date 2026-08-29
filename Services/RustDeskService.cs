@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace RemotePC.Services;
@@ -6,10 +5,8 @@ namespace RemotePC.Services;
 public sealed class RustDeskService
 {
     private const string ExecutableName = "rustdesk.exe";
-    private static readonly TimeSpan HelpProbeTimeout = TimeSpan.FromSeconds(3);
-    private readonly ConcurrentDictionary<string, Lazy<Task<DirectConnectSyntax?>>> _directConnectSyntaxCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public async Task LaunchAsync(string? rustDeskId, CancellationToken cancellationToken)
+    public Task LaunchAsync(string? rustDeskId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -25,90 +22,15 @@ public sealed class RustDeskService
         }
 
         var startInfo = CreateStartInfo(executable);
-        var directConnectSyntax = await GetDirectConnectSyntaxAsync(executable, cancellationToken);
-        if (directConnectSyntax is not null)
-        {
-            directConnectSyntax.AddArguments(startInfo, rustDeskId.Trim());
-        }
+        startInfo.ArgumentList.Add("--connect");
+        startInfo.ArgumentList.Add(rustDeskId.Trim());
 
         if (Process.Start(startInfo) is null)
         {
             throw new InvalidOperationException("RustDesk could not be started.");
         }
-    }
 
-    private Task<DirectConnectSyntax?> GetDirectConnectSyntaxAsync(string executable, CancellationToken cancellationToken)
-    {
-        var lazy = _directConnectSyntaxCache.GetOrAdd(
-            executable,
-            static path => new Lazy<Task<DirectConnectSyntax?>>(() => ProbeDirectConnectSyntaxAsync(path)));
-
-        return lazy.Value.WaitAsync(cancellationToken);
-    }
-
-    private static async Task<DirectConnectSyntax?> ProbeDirectConnectSyntaxAsync(string executable)
-    {
-        using var cts = new CancellationTokenSource(HelpProbeTimeout);
-        using var process = StartHelpProbe(executable);
-        if (process is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var outputTask = process.StandardOutput.ReadToEndAsync(cts.Token);
-            var errorTask = process.StandardError.ReadToEndAsync(cts.Token);
-            await process.WaitForExitAsync(cts.Token);
-
-            var helpText = string.Concat(await outputTask, Environment.NewLine, await errorTask);
-            return ParseDirectConnectSyntax(helpText);
-        }
-        catch (OperationCanceledException)
-        {
-            TryKill(process);
-            return null;
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException)
-        {
-            return null;
-        }
-    }
-
-    private static Process? StartHelpProbe(string executable)
-    {
-        var startInfo = CreateStartInfo(executable);
-        startInfo.ArgumentList.Add("--help");
-        startInfo.RedirectStandardOutput = true;
-        startInfo.RedirectStandardError = true;
-        startInfo.CreateNoWindow = true;
-        startInfo.UseShellExecute = false;
-
-        return Process.Start(startInfo);
-    }
-
-    private static DirectConnectSyntax? ParseDirectConnectSyntax(string helpText)
-    {
-        if (helpText.Contains("--connect", StringComparison.OrdinalIgnoreCase))
-        {
-            return DirectConnectSyntax.LongConnectOption;
-        }
-
-        return null;
-    }
-
-    private static void TryKill(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or System.ComponentModel.Win32Exception)
-        {
-        }
+        return Task.CompletedTask;
     }
 
     private static ProcessStartInfo CreateStartInfo(string executable)
@@ -168,21 +90,4 @@ public sealed class RustDeskService
         }
     }
 
-    private sealed class DirectConnectSyntax
-    {
-        public static readonly DirectConnectSyntax LongConnectOption = new("--connect");
-
-        private readonly string _option;
-
-        private DirectConnectSyntax(string option)
-        {
-            _option = option;
-        }
-
-        public void AddArguments(ProcessStartInfo startInfo, string rustDeskId)
-        {
-            startInfo.ArgumentList.Add(_option);
-            startInfo.ArgumentList.Add(rustDeskId);
-        }
-    }
 }
