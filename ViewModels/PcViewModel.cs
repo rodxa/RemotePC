@@ -12,7 +12,7 @@ public partial class PcViewModel : ObservableObject
 
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
-    private readonly ParsecService _parsecService;
+    private readonly RustDeskService _rustDeskService;
     private readonly CancellationToken _applicationCancellationToken;
 
     [ObservableProperty]
@@ -32,13 +32,13 @@ public partial class PcViewModel : ObservableObject
         PcDevice device,
         SupabaseService supabaseService,
         PcStatusService statusService,
-        ParsecService parsecService,
+        RustDeskService rustDeskService,
         CancellationToken applicationCancellationToken)
     {
         Device = device;
         _supabaseService = supabaseService;
         _statusService = statusService;
-        _parsecService = parsecService;
+        _rustDeskService = rustDeskService;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
@@ -52,7 +52,7 @@ public partial class PcViewModel : ObservableObject
 
     public string LastSeenText => Device.LastSeen is null ? "No heartbeat yet" : $"Last seen {Device.LastSeen.Value.LocalDateTime:g}";
 
-    public string ButtonText => IsOnline ? "Connect" : "Wake";
+    public string ButtonText => "Connect";
 
     public bool HasDisplayName => !string.IsNullOrWhiteSpace(Device.DisplayName);
 
@@ -113,12 +113,19 @@ public partial class PcViewModel : ObservableObject
                 return;
             }
 
+            if (string.IsNullOrWhiteSpace(Device.RustDeskId))
+            {
+                StatusText = "RustDesk ID not configured";
+                ErrorMessage = "Add this PC's RustDesk ID in Supabase.";
+                return;
+            }
+
             StatusText = "Checking...";
             IsOnline = await _statusService.IsReachableAsync(Device.TailscaleIp, cancellationToken);
 
             if (IsOnline)
             {
-                await OpenParsecAsync(cancellationToken);
+                await OpenRustDeskAsync(cancellationToken);
                 return;
             }
 
@@ -140,20 +147,26 @@ public partial class PcViewModel : ObservableObject
 
             if (!IsOnline)
             {
-                StatusText = "Wake timed out";
+                StatusText = "Failed to wake";
                 ErrorMessage = "The PC did not become reachable through Tailscale within 90 seconds.";
                 return;
             }
 
-            StatusText = "Online";
+            StatusText = "Opening RustDesk...";
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-            await OpenParsecAsync(cancellationToken);
+            await OpenRustDeskAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (_applicationCancellationToken.IsCancellationRequested)
         {
             StatusText = "Cancelled";
         }
-        catch (Exception ex) when (ex is SupabaseException or FileNotFoundException or IOException or InvalidOperationException)
+        catch (FileNotFoundException ex)
+        {
+            IsOnline = await SafeCheckOnlineAsync();
+            StatusText = "RustDesk is not installed";
+            ErrorMessage = ex.Message;
+        }
+        catch (Exception ex) when (ex is SupabaseException or IOException or InvalidOperationException)
         {
             IsOnline = await SafeCheckOnlineAsync();
             StatusText = IsOnline ? "Online" : "Offline";
@@ -170,11 +183,11 @@ public partial class PcViewModel : ObservableObject
         return !IsBusy;
     }
 
-    private async Task OpenParsecAsync(CancellationToken cancellationToken)
+    private async Task OpenRustDeskAsync(CancellationToken cancellationToken)
     {
-        StatusText = "Opening Parsec...";
-        await _parsecService.LaunchAsync(Device.ParsecPeerId, cancellationToken);
-        StatusText = "Parsec opened";
+        StatusText = "Opening RustDesk...";
+        await _rustDeskService.LaunchAsync(Device.RustDeskId, cancellationToken);
+        StatusText = "Online";
     }
 
     private async Task<bool> SafeCheckOnlineAsync()

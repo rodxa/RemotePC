@@ -1,13 +1,13 @@
 # RemotePC
 
-RemotePC is a small Avalonia desktop utility for waking and connecting to home PCs through a Supabase-driven command table. It loads enabled PCs from Supabase, checks each Tailscale IP concurrently, sends an atomic wake command when needed, waits for the PC to become reachable, and then opens Parsec.
+RemotePC is a small Avalonia desktop utility for waking and connecting to home PCs through a Supabase-driven command table. It loads enabled PCs from Supabase, checks each Tailscale IP concurrently, sends an atomic wake command when needed, waits for the PC to become reachable, and then opens RustDesk.
 
 ## Requirements
 
 - .NET SDK 9 on this machine, targeting `net9.0`
 - A Supabase project with `public.pc_remote_control`
 - Tailscale installed/configured on each managed PC
-- Parsec installed on the client machine
+- RustDesk installed on the client machine
 
 ## Supabase Configuration
 
@@ -26,11 +26,11 @@ Use a Supabase publishable key only. Do not use `service_role` or any secret key
 
 ## SQL Migration
 
-Run [Migrations/001_extend_pc_remote_control.sql](Migrations/001_extend_pc_remote_control.sql) in the Supabase SQL editor. It adds the app fields with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, enables RLS, grants read access to enabled rows, and creates the `wake_pc(target_id bigint)` RPC function that atomically increments `command_id`.
+Run [Migrations/001_extend_pc_remote_control.sql](Migrations/001_extend_pc_remote_control.sql) in the Supabase SQL editor. It adds the app fields with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, safely renames or merges `parsec_peer_id` into `rustdesk_id`, enables RLS, grants read access to enabled rows, and creates the `wake_pc(target_id bigint)` RPC function that atomically increments `command_id`.
 
 ## Adding Another PC
 
-Insert a new row in `public.pc_remote_control` with a unique `device_name`, optional `display_name`, the PC's `tailscale_ip`, optional `parsec_peer_id`, `enabled = true`, and a `sort_order`. The app is data-driven; refresh or restart and the new PC appears without C# changes.
+Insert a new row in `public.pc_remote_control` with a unique `device_name`, optional `display_name`, the PC's `tailscale_ip`, the PC's `rustdesk_id`, `enabled = true`, and a `sort_order`. The app is data-driven; refresh or restart and the new PC appears without C# changes.
 
 ## ESP32 Integration
 
@@ -40,9 +40,43 @@ The app never sends Wake-on-LAN directly. For an offline PC, it calls Supabase R
 
 Online detection uses the `tailscale_ip` stored in Supabase, not a home LAN address. The app uses short asynchronous ICMP pings and checks multiple PCs concurrently.
 
-## Parsec
+## RustDesk
 
-RemotePC looks for Parsec in common Windows locations under `%LOCALAPPDATA%\Parsec`, `%LOCALAPPDATA%\Programs\Parsec`, `C:\Program Files\Parsec`, and `C:\Program Files (x86)\Parsec`. It opens Parsec normally. `parsec_peer_id` is modeled for future direct-launch support, but no undocumented command-line parameters are invented.
+Install RustDesk on the home PC. If unattended startup is required, install RustDesk rather than only using it as a temporary portable app. Configure unattended access and the permanent password inside RustDesk itself.
+
+Never put the RustDesk password in Supabase, `appsettings.json`, or source code. RustDesk handles saved unattended credentials.
+
+Find the home PC's RustDesk ID and store only that ID in `public.pc_remote_control.rustdesk_id`. Install RustDesk on the laptop/client machine too, then test a connection while the home PC is at the Windows lock screen.
+
+RemotePC looks for RustDesk in common Windows locations under `C:\Program Files\RustDesk`, `C:\Program Files (x86)\RustDesk`, `%LOCALAPPDATA%\Programs\RustDesk`, `%LOCALAPPDATA%\RustDesk`, and the current process `PATH`. If the installed RustDesk build exposes a supported direct-connect CLI option such as `--connect`, RemotePC uses it with the row's `rustdesk_id`. If the local build does not expose a reliable direct-connect option, RemotePC opens RustDesk normally.
+
+## Architecture
+
+```text
+Laptop
+  |
+Avalonia RemotePC
+  |
+check Tailscale IP
+  |
+if offline
+  |
+Supabase
+  |
+ESP32-S3
+  |
+Wake-on-LAN
+  |
+Windows / RustDesk service starts
+  |
+Tailscale becomes reachable
+  |
+Avalonia launches RustDesk
+  |
+remote session
+```
+
+Tailscale is used by this application for online detection. RustDesk handles the actual remote-desktop connection.
 
 ## Run And Build
 

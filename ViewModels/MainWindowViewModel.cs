@@ -9,7 +9,7 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
-    private readonly ParsecService _parsecService;
+    private readonly RustDeskService _rustDeskService;
     private readonly CancellationToken _applicationCancellationToken;
     private CancellationTokenSource? _refreshCts;
 
@@ -23,12 +23,12 @@ public partial class MainWindowViewModel : ObservableObject
     public MainWindowViewModel(
         SupabaseService supabaseService,
         PcStatusService statusService,
-        ParsecService parsecService,
+        RustDeskService rustDeskService,
         CancellationToken applicationCancellationToken)
     {
         _supabaseService = supabaseService;
         _statusService = statusService;
-        _parsecService = parsecService;
+        _rustDeskService = rustDeskService;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
@@ -91,7 +91,7 @@ public partial class MainWindowViewModel : ObservableObject
                     device,
                     _supabaseService,
                     _statusService,
-                    _parsecService,
+                    _rustDeskService,
                     _applicationCancellationToken));
             }
 

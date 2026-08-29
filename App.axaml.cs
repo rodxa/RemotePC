@@ -27,12 +27,12 @@ public partial class App : Application
             _httpClient = new HttpClient();
             _supabaseService = new SupabaseService(_httpClient, options);
             var statusService = new PcStatusService();
-            var parsecService = new ParsecService();
+            var rustDeskService = new RustDeskService();
 
             var viewModel = new MainWindowViewModel(
                 _supabaseService,
                 statusService,
-                parsecService,
+                rustDeskService,
                 _shutdown.Token);
 
             desktop.MainWindow = new MainWindow

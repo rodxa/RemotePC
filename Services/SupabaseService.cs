@@ -30,7 +30,7 @@ public sealed class SupabaseService : IDisposable
 
         using var request = CreateRequest(
             HttpMethod.Get,
-            "/rest/v1/pc_remote_control?select=id,device_name,display_name,command_id,tailscale_ip,parsec_peer_id,enabled,last_seen,sort_order&enabled=eq.true&order=sort_order.asc,id.asc");
+            "/rest/v1/pc_remote_control?select=id,device_name,display_name,command_id,tailscale_ip,rustdesk_id,enabled,last_seen,sort_order,updated_at&enabled=eq.true&order=sort_order.asc,id.asc");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);

@@ -5,17 +5,59 @@
 alter table public.pc_remote_control
   add column if not exists display_name text,
   add column if not exists tailscale_ip inet,
-  add column if not exists parsec_peer_id text,
   add column if not exists enabled boolean not null default true,
   add column if not exists last_seen timestamptz,
-  add column if not exists sort_order integer not null default 0;
+  add column if not exists sort_order integer not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'pc_remote_control'
+       and column_name = 'parsec_peer_id'
+  ) and not exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'pc_remote_control'
+       and column_name = 'rustdesk_id'
+  ) then
+    alter table public.pc_remote_control
+      rename column parsec_peer_id to rustdesk_id;
+  elsif exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'pc_remote_control'
+       and column_name = 'parsec_peer_id'
+  ) and exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'pc_remote_control'
+       and column_name = 'rustdesk_id'
+  ) then
+    update public.pc_remote_control
+       set rustdesk_id = coalesce(rustdesk_id, parsec_peer_id);
+
+    alter table public.pc_remote_control
+      drop column parsec_peer_id;
+  end if;
+end $$;
+
+alter table public.pc_remote_control
+  add column if not exists rustdesk_id text;
 
 comment on column public.pc_remote_control.display_name is 'Human-friendly name shown in the RemotePC app.';
 comment on column public.pc_remote_control.tailscale_ip is 'Tailscale IP used by the desktop app for remote reachability checks.';
-comment on column public.pc_remote_control.parsec_peer_id is 'Optional Parsec peer identifier reserved for future direct peer launch support.';
+comment on column public.pc_remote_control.rustdesk_id is 'RustDesk ID used by the desktop app to launch the RustDesk client for this PC. Do not store passwords here.';
 comment on column public.pc_remote_control.enabled is 'Only enabled rows are visible to the RemotePC app.';
 comment on column public.pc_remote_control.last_seen is 'Optional heartbeat timestamp written by a trusted device or future status process.';
 comment on column public.pc_remote_control.sort_order is 'Controls display order in the RemotePC app.';
+comment on column public.pc_remote_control.updated_at is 'Timestamp updated by wake_pc when a wake command is issued.';
 
 create index if not exists pc_remote_control_enabled_sort_idx
   on public.pc_remote_control (enabled, sort_order, id);

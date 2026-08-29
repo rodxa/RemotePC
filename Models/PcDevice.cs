@@ -19,8 +19,8 @@ public sealed class PcDevice
     [JsonPropertyName("tailscale_ip")]
     public string? TailscaleIp { get; init; }
 
-    [JsonPropertyName("parsec_peer_id")]
-    public string? ParsecPeerId { get; init; }
+    [JsonPropertyName("rustdesk_id")]
+    public string? RustDeskId { get; init; }
 
     [JsonPropertyName("enabled")]
     public bool Enabled { get; init; }
@@ -30,6 +30,9 @@ public sealed class PcDevice
 
     [JsonPropertyName("sort_order")]
     public int SortOrder { get; init; }
+
+    [JsonPropertyName("updated_at")]
+    public DateTimeOffset? UpdatedAt { get; init; }
 
     public string FriendlyName => string.IsNullOrWhiteSpace(DisplayName) ? DeviceName : DisplayName;
 }
