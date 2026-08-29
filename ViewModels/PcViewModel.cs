@@ -9,6 +9,7 @@ public partial class PcViewModel : ObservableObject
 {
     private static readonly TimeSpan BootTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RustDeskStartupDelay = TimeSpan.FromSeconds(12);
 
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
@@ -152,8 +153,8 @@ public partial class PcViewModel : ObservableObject
                 return;
             }
 
-            StatusText = "Opening RustDesk...";
-            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+            StatusText = "Waiting for RustDesk...";
+            await Task.Delay(RustDeskStartupDelay, cancellationToken);
             await OpenRustDeskAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (_applicationCancellationToken.IsCancellationRequested)

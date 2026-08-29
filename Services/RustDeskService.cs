@@ -5,6 +5,7 @@ namespace RemotePC.Services;
 public sealed class RustDeskService
 {
     private const string ExecutableName = "rustdesk.exe";
+    private const string RustDeskUriScheme = "rustdesk";
 
     public Task LaunchAsync(string? rustDeskId, CancellationToken cancellationToken)
     {
@@ -21,6 +22,11 @@ public sealed class RustDeskService
             throw new FileNotFoundException("RustDesk is not installed. Install RustDesk or check its installation path.");
         }
 
+        if (TryLaunchRustDeskUri(rustDeskId.Trim()))
+        {
+            return Task.CompletedTask;
+        }
+
         var startInfo = CreateStartInfo(executable);
         startInfo.ArgumentList.Add("--connect");
         startInfo.ArgumentList.Add(rustDeskId.Trim());
@@ -31,6 +37,47 @@ public sealed class RustDeskService
         }
 
         return Task.CompletedTask;
+    }
+
+    private static bool TryLaunchRustDeskUri(string rustDeskId)
+    {
+        if (!IsRustDeskUriSchemeRegistered())
+        {
+            return false;
+        }
+
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = $"rustdesk://connection/new/{Uri.EscapeDataString(rustDeskId)}",
+                UseShellExecute = true
+            };
+
+            return Process.Start(startInfo) is not null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsRustDeskUriSchemeRegistered()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            using var key = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey($@"{RustDeskUriScheme}\shell\open\command");
+            return key?.GetValue(null) is string command && !string.IsNullOrWhiteSpace(command);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            return false;
+        }
     }
 
     private static ProcessStartInfo CreateStartInfo(string executable)
