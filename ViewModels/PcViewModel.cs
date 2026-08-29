@@ -7,7 +7,7 @@ namespace RemotePC.ViewModels;
 
 public partial class PcViewModel : ObservableObject
 {
-    private static readonly TimeSpan BootTimeout = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan BootTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RustDeskStartupDelay = TimeSpan.FromSeconds(10);
 
@@ -22,6 +22,10 @@ public partial class PcViewModel : ObservableObject
 
     [ObservableProperty]
     private bool isOnline;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    private bool isCurrentMachine;
 
     [ObservableProperty]
     private string statusText = "Checking...";
@@ -53,20 +57,37 @@ public partial class PcViewModel : ObservableObject
 
     public string LastSeenText => Device.LastSeen is null ? "No heartbeat yet" : $"Last seen {Device.LastSeen.Value.LocalDateTime:g}";
 
-    public string ButtonText => "Connect";
+    public string ButtonText => IsCurrentMachine ? "This PC" : "Connect";
 
     public bool HasDisplayName => !string.IsNullOrWhiteSpace(Device.DisplayName);
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    public bool HasTroubleshooting => !string.IsNullOrWhiteSpace(TroubleshootingText);
+
+    public string TroubleshootingText => GetTroubleshootingText();
 
     partial void OnIsOnlineChanged(bool value)
     {
         OnPropertyChanged(nameof(ButtonText));
     }
 
+    partial void OnIsCurrentMachineChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ButtonText));
+    }
+
+    partial void OnStatusTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(TroubleshootingText));
+        OnPropertyChanged(nameof(HasTroubleshooting));
+    }
+
     partial void OnErrorMessageChanged(string? value)
     {
         OnPropertyChanged(nameof(HasError));
+        OnPropertyChanged(nameof(TroubleshootingText));
+        OnPropertyChanged(nameof(HasTroubleshooting));
     }
 
     public async Task RefreshStatusAsync(CancellationToken cancellationToken)
@@ -77,6 +98,13 @@ public partial class PcViewModel : ObservableObject
         }
 
         ErrorMessage = null;
+        IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
+        if (IsCurrentMachine)
+        {
+            IsOnline = true;
+            StatusText = "This PC";
+            return;
+        }
 
         if (string.IsNullOrWhiteSpace(Device.TailscaleIp))
         {
@@ -106,6 +134,15 @@ public partial class PcViewModel : ObservableObject
 
         try
         {
+            IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
+            if (IsCurrentMachine)
+            {
+                IsOnline = true;
+                StatusText = "This PC";
+                ErrorMessage = "You are already on this PC.";
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(Device.TailscaleIp))
             {
                 IsOnline = false;
@@ -181,7 +218,19 @@ public partial class PcViewModel : ObservableObject
 
     private bool CanConnect()
     {
-        return !IsBusy;
+        return !IsBusy && !IsCurrentMachine;
+    }
+
+    private async Task<bool> IsCurrentMachineAsync(CancellationToken cancellationToken)
+    {
+        var isLocalTailscaleIp = _statusService.IsLocalTailscaleIp(Device.TailscaleIp);
+        if (isLocalTailscaleIp)
+        {
+            return true;
+        }
+
+        var isLocalRustDeskId = await _rustDeskService.IsLocalRustDeskIdAsync(Device.RustDeskId, cancellationToken);
+        return isLocalRustDeskId == true;
     }
 
     private async Task<bool> IsPcOnlineAsync(CancellationToken cancellationToken)
@@ -240,5 +289,47 @@ public partial class PcViewModel : ObservableObject
         {
             return false;
         }
+    }
+
+    private string GetTroubleshootingText()
+    {
+        if (StatusText.Equals("Missing Tailscale IP", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Check: add the target PC's Tailscale IP to Supabase.";
+        }
+
+        if (StatusText.Equals("RustDesk ID not configured", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Check: add rustdesk_id in Supabase, remove spaces, never add the password.";
+        }
+
+        if (StatusText.Equals("RustDesk is not installed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Check: install RustDesk on this laptop, then retry.";
+        }
+
+        if (StatusText.Equals("This PC", StringComparison.OrdinalIgnoreCase))
+        {
+            return "This row matches the computer you are using.";
+        }
+
+        if (StatusText.Equals("Failed to wake", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Check: PC power, BIOS Wake-on-LAN, ESP32 polling, and Ethernet.";
+        }
+
+        if (ErrorMessage?.Contains("Wake command", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("Supabase", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("wake_pc", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "Check: Supabase settings, wake_pc RPC, enabled row, and command_id.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            return "Check: RustDesk ID, RustDesk install, Tailscale IP, then refresh.";
+        }
+
+        return string.Empty;
     }
 }

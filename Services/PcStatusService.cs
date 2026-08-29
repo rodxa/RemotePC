@@ -1,6 +1,7 @@
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.Net;
 
 namespace RemotePC.Services;
 
@@ -39,6 +40,18 @@ public sealed class PcStatusService
         {
             return false;
         }
+    }
+
+    public bool IsLocalTailscaleIp(string? tailscaleIp)
+    {
+        if (!IPAddress.TryParse(tailscaleIp?.Trim(), out var targetIp))
+        {
+            return false;
+        }
+
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .SelectMany(static networkInterface => networkInterface.GetIPProperties().UnicastAddresses)
+            .Any(address => address.Address.Equals(targetIp));
     }
 
     public async Task<bool> WaitUntilReachableAsync(

@@ -43,6 +43,10 @@ public partial class MainWindowViewModel : ObservableObject
         (ErrorMessage!.Contains("appsettings", StringComparison.OrdinalIgnoreCase) ||
          ErrorMessage.Contains("Supabase:", StringComparison.OrdinalIgnoreCase));
 
+    public bool HasTroubleshooting => !string.IsNullOrWhiteSpace(TroubleshootingText);
+
+    public string TroubleshootingText => GetTroubleshootingText();
+
     public bool ShowEmptyState => !IsLoading && ErrorMessage is null && Pcs.Count == 0;
 
     public async Task InitializeAsync()
@@ -61,6 +65,8 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(HasError));
         OnPropertyChanged(nameof(ShowSettingsPrompt));
         OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(TroubleshootingText));
+        OnPropertyChanged(nameof(HasTroubleshooting));
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
@@ -125,5 +131,27 @@ public partial class MainWindowViewModel : ObservableObject
     private bool CanRefresh()
     {
         return !IsLoading;
+    }
+
+    private string GetTroubleshootingText()
+    {
+        if (ErrorMessage?.Contains("appsettings", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("Supabase:", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "Steps: open Settings, add Supabase URL and publishable key, save, refresh.";
+        }
+
+        if (ErrorMessage?.Contains("wake_pc", StringComparison.OrdinalIgnoreCase) == true ||
+            ErrorMessage?.Contains("PGRST202", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return "Steps: run the SQL migration, confirm wake_pc exists, reload schema.";
+        }
+
+        if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            return "Steps: check internet, Supabase project, table permissions, then refresh.";
+        }
+
+        return string.Empty;
     }
 }

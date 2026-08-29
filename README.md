@@ -50,6 +50,8 @@ Find the home PC's RustDesk ID and store only that ID in `public.pc_remote_contr
 
 RemotePC looks for RustDesk in common Windows locations under `C:\Program Files\RustDesk`, `C:\Program Files (x86)\RustDesk`, `%LOCALAPPDATA%\Programs\RustDesk`, `%LOCALAPPDATA%\RustDesk`, and the current process `PATH`. It prefers RustDesk's `rustdesk://connection/new/<rustdesk_id>` URI launch for the selected Supabase row, then falls back to `rustdesk.exe --connect <rustdesk_id>` if the URI handler is unavailable.
 
+If a Supabase row matches the laptop's own RustDesk ID or local Tailscale IP, RemotePC marks it as `This PC` and disables Connect to prevent self-connections.
+
 ## Architecture
 
 ```text

@@ -104,6 +104,42 @@ public sealed class RustDeskService
         }
     }
 
+    public async Task<bool?> IsLocalRustDeskIdAsync(string? rustDeskId, CancellationToken cancellationToken)
+    {
+        var normalizedRustDeskId = NormalizeRustDeskId(rustDeskId);
+        if (string.IsNullOrWhiteSpace(normalizedRustDeskId))
+        {
+            return false;
+        }
+
+        var executable = FindRustDeskExecutable();
+        if (executable is null)
+        {
+            return null;
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(OnlineCheckTimeout);
+
+        try
+        {
+            var target = ParseRustDeskTarget(normalizedRustDeskId);
+            var localId = await GetLocalRustDeskIdAsync(executable, timeoutCts.Token);
+            return string.Equals(
+                NormalizeRustDeskId(localId),
+                NormalizeRustDeskId(target.PeerId),
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
     public static string NormalizeRustDeskId(string? rustDeskId)
     {
         if (string.IsNullOrWhiteSpace(rustDeskId))
