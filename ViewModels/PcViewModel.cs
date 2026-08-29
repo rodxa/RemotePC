@@ -86,7 +86,7 @@ public partial class PcViewModel : ObservableObject
         }
 
         StatusText = "Checking...";
-        IsOnline = await _statusService.IsReachableAsync(Device.TailscaleIp, cancellationToken);
+        IsOnline = await IsPcOnlineAsync(cancellationToken);
         StatusText = IsOnline ? "Online" : "Offline";
     }
 
@@ -122,7 +122,7 @@ public partial class PcViewModel : ObservableObject
             }
 
             StatusText = "Checking...";
-            IsOnline = await _statusService.IsReachableAsync(Device.TailscaleIp, cancellationToken);
+            IsOnline = await IsPcOnlineAsync(cancellationToken);
 
             if (IsOnline)
             {
@@ -139,8 +139,7 @@ public partial class PcViewModel : ObservableObject
                 StatusText = $"Waiting for PC... {Math.Ceiling(remaining.TotalSeconds):0}s";
             });
 
-            IsOnline = await _statusService.WaitUntilReachableAsync(
-                Device.TailscaleIp,
+            IsOnline = await WaitUntilOnlineAsync(
                 BootTimeout,
                 PollInterval,
                 progress,
@@ -185,6 +184,45 @@ public partial class PcViewModel : ObservableObject
         return !IsBusy;
     }
 
+    private async Task<bool> IsPcOnlineAsync(CancellationToken cancellationToken)
+    {
+        var tailscaleTask = _statusService.IsReachableAsync(Device.TailscaleIp, cancellationToken);
+        var rustDeskTask = _rustDeskService.IsPeerOnlineAsync(Device.RustDeskId, cancellationToken);
+
+        await Task.WhenAll(tailscaleTask, rustDeskTask);
+        return tailscaleTask.Result || rustDeskTask.Result == true;
+    }
+
+    private async Task<bool> WaitUntilOnlineAsync(
+        TimeSpan timeout,
+        TimeSpan pollInterval,
+        IProgress<TimeSpan>? remainingProgress,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (await IsPcOnlineAsync(cancellationToken))
+            {
+                return true;
+            }
+
+            var remaining = deadline - DateTimeOffset.UtcNow;
+            remainingProgress?.Report(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
+
+            var delay = remaining < pollInterval ? remaining : pollInterval;
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
+        return false;
+    }
+
     private async Task OpenRustDeskAsync(CancellationToken cancellationToken)
     {
         StatusText = "Opening RustDesk...";
@@ -196,7 +234,7 @@ public partial class PcViewModel : ObservableObject
     {
         try
         {
-            return await _statusService.IsReachableAsync(Device.TailscaleIp, _applicationCancellationToken);
+            return await IsPcOnlineAsync(_applicationCancellationToken);
         }
         catch
         {

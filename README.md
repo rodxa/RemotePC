@@ -38,7 +38,7 @@ The app never sends Wake-on-LAN directly. For an offline PC, it calls Supabase R
 
 ## Tailscale
 
-Online detection uses the `tailscale_ip` stored in Supabase, not a home LAN address. The app uses short asynchronous ICMP pings and checks multiple PCs concurrently.
+Online detection uses the `tailscale_ip` stored in Supabase, not a home LAN address. The app also asks the configured RustDesk rendezvous server whether the row's `rustdesk_id` is online. If either Tailscale or RustDesk reports the PC online, RemotePC treats it as reachable.
 
 ## RustDesk
 
@@ -58,6 +58,8 @@ Laptop
 Avalonia RemotePC
   |
 check Tailscale IP
+  |
+check RustDesk online status
   |
 if offline
   |
