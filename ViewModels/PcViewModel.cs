@@ -148,8 +148,9 @@ public partial class PcViewModel : ObservableObject
 
             if (!IsOnline)
             {
-                StatusText = "Failed to wake";
-                ErrorMessage = "The PC did not become reachable through Tailscale within 90 seconds.";
+                StatusText = "Opening RustDesk...";
+                ErrorMessage = "Wake command was sent, but Tailscale did not confirm the PC is online.";
+                await OpenRustDeskAsync(cancellationToken);
                 return;
             }
 

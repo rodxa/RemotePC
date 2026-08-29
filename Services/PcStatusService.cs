@@ -84,6 +84,8 @@ public sealed class PcStatusService
         {
             FileName = tailscaleExecutable,
             UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
             CreateNoWindow = true
         };
         startInfo.ArgumentList.Add("ping");
@@ -91,6 +93,7 @@ public sealed class PcStatusService
         startInfo.ArgumentList.Add("1");
         startInfo.ArgumentList.Add("--timeout");
         startInfo.ArgumentList.Add("2s");
+        startInfo.ArgumentList.Add("--until-direct=false");
         startInfo.ArgumentList.Add(tailscaleIp);
 
         Process? process = null;
@@ -102,8 +105,12 @@ public sealed class PcStatusService
                 return null;
             }
 
+            var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+            var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
             await process.WaitForExitAsync(timeoutCts.Token);
-            return process.ExitCode == 0;
+            var output = string.Concat(await outputTask, Environment.NewLine, await errorTask);
+
+            return process.ExitCode == 0 || IsTailscalePingSuccess(output);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -122,6 +129,11 @@ public sealed class PcStatusService
         {
             process?.Dispose();
         }
+    }
+
+    private static bool IsTailscalePingSuccess(string output)
+    {
+        return output.Contains("pong from", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void TryKill(Process? process)
