@@ -119,6 +119,7 @@ public sealed class RemoteHostServer : IAsyncDisposable
             MachineName = _options.MachineName,
             Version = typeof(App).Assembly.GetName().Version?.ToString() ?? "1.0.0",
             HostEnabled = true,
+            HostDeviceId = _credentials.GetOrCreateLocalDeviceId(),
             UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startedAt).TotalSeconds
         });
 

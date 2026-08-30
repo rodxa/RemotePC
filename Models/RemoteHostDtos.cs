@@ -13,6 +13,9 @@ public sealed class RemoteHostHealth
     [JsonPropertyName("hostEnabled")]
     public bool HostEnabled { get; init; }
 
+    [JsonPropertyName("hostDeviceId")]
+    public string HostDeviceId { get; init; } = string.Empty;
+
     [JsonPropertyName("uptimeSeconds")]
     public long UptimeSeconds { get; init; }
 }

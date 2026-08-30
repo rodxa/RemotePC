@@ -28,9 +28,19 @@ public sealed class RemoteHostClient
             return null;
         }
 
+        return await GetHealthAsync(device.TailscaleHost, device.RemotePort, cancellationToken);
+    }
+
+    public async Task<RemoteHostHealth?> GetHealthAsync(string tailscaleHost, int remotePort, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(tailscaleHost))
+        {
+            return null;
+        }
+
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(HealthTimeout);
-        using var request = new HttpRequestMessage(HttpMethod.Get, CreateUri(device, "/api/health"));
+        using var request = new HttpRequestMessage(HttpMethod.Get, CreateUri(tailscaleHost, remotePort, "/api/health"));
 
         try
         {
@@ -174,7 +184,13 @@ public sealed class RemoteHostClient
     private static Uri CreateUri(PcDevice device, string path)
     {
         var port = device.RemotePort is > 0 and <= 65535 ? device.RemotePort : LocalAppOptions.DefaultRemotePort;
-        return new UriBuilder(Uri.UriSchemeHttp, device.TailscaleHost, port, path.TrimStart('/')).Uri;
+        return CreateUri(device.TailscaleHost, port, path);
+    }
+
+    private static Uri CreateUri(string tailscaleHost, int remotePort, string path)
+    {
+        var port = remotePort is > 0 and <= 65535 ? remotePort : LocalAppOptions.DefaultRemotePort;
+        return new UriBuilder(Uri.UriSchemeHttp, tailscaleHost, port, path.TrimStart('/')).Uri;
     }
 
     private static string TrimBody(string body)

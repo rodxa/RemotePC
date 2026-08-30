@@ -5,9 +5,9 @@
         x:DataType="vm:AddDeviceWindowViewModel"
         Title="{Binding WindowTitle}"
         Width="520"
-        Height="470"
+        Height="640"
         MinWidth="420"
-        MinHeight="400"
+        MinHeight="560"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
   <Window.Styles>
@@ -38,37 +38,62 @@
                  Margin="0,4,0,4" />
     </StackPanel>
 
-    <StackPanel Grid.Row="1"
-                Margin="0,8,0,0">
-      <TextBlock Text="Device Name"
-                 Classes="label" />
-      <TextBox Text="{Binding DeviceName}"
-               PlaceholderText="gaming-pc" />
+    <ScrollViewer Grid.Row="1"
+                  Margin="0,8,0,0"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <TextBlock Text="Device Name"
+                   Classes="label" />
+        <TextBox Text="{Binding DeviceName}"
+                 PlaceholderText="gaming-pc" />
 
-      <TextBlock Text="Display Name"
-                 Classes="label" />
-      <TextBox Text="{Binding DisplayName}"
-               PlaceholderText="Gaming PC" />
+        <TextBlock Text="Display Name"
+                   Classes="label" />
+        <TextBox Text="{Binding DisplayName}"
+                 PlaceholderText="Gaming PC" />
 
-      <TextBlock Text="Tailscale IP"
-                 Classes="label" />
-      <TextBox Text="{Binding TailscaleIp}"
-               PlaceholderText="100.x.y.z" />
+        <TextBlock Text="Tailscale IP"
+                   Classes="label" />
+        <TextBox Text="{Binding TailscaleIp}"
+                 PlaceholderText="100.x.y.z" />
 
-      <TextBlock Text="RustDesk ID"
-                 Classes="label" />
-      <TextBox Text="{Binding RustDeskId}"
-               PlaceholderText="123456789" />
+        <TextBlock Text="RustDesk ID"
+                   Classes="label" />
+        <TextBox Text="{Binding RustDeskId}"
+                 PlaceholderText="123456789" />
 
-      <CheckBox Content="Enabled"
-                IsChecked="{Binding Enabled}"
-                Margin="0,14,0,0" />
+        <TextBlock Text="Remote Device ID"
+                   Classes="label" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Text="{Binding RemoteDeviceId}"
+                   PlaceholderText="00000000-0000-0000-0000-000000000000" />
+          <Button Grid.Column="1"
+                  Content="Get"
+                  Command="{Binding FetchRemoteDeviceIdCommand}"
+                  Margin="8,0,0,0"
+                  MinWidth="64"
+                  ToolTip.Tip="Fetch from the RemotePC host at the Tailscale IP and port" />
+        </Grid>
 
-      <TextBlock Text="{Binding ErrorMessage}"
-                 Classes="error"
-                 Margin="0,12,0,0"
-                 IsVisible="{Binding HasError}" />
-    </StackPanel>
+        <TextBlock Text="Remote Port"
+                   Classes="label" />
+        <TextBox Text="{Binding RemotePort}"
+                 PlaceholderText="47632" />
+
+        <CheckBox Content="Remote host enabled"
+                  IsChecked="{Binding RemoteEnabled}"
+                  Margin="0,14,0,0" />
+
+        <CheckBox Content="Enabled"
+                  IsChecked="{Binding Enabled}"
+                  Margin="0,8,0,0" />
+
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Classes="error"
+                   Margin="0,12,0,0"
+                   IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </ScrollViewer>
 
     <StackPanel Grid.Row="2"
                 Orientation="Horizontal"

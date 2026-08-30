@@ -99,9 +99,12 @@ public partial class MainWindowViewModel : ObservableObject
                 CommandId = 0,
                 TailscaleIp = request.TailscaleIp,
                 RustDeskId = request.RustDeskId,
-                Enabled = true,
+                Enabled = request.Enabled,
                 SortOrder = Pcs.Count == 0 ? 0 : Pcs.Max(pc => pc.Device.SortOrder) + 10,
-                UpdatedAt = DateTimeOffset.UtcNow
+                UpdatedAt = DateTimeOffset.UtcNow,
+                RemotePort = request.RemotePort,
+                RemoteEnabled = request.RemoteEnabled,
+                RemoteDeviceId = request.RemoteDeviceId
             };
 
             var pc = new PcViewModel(

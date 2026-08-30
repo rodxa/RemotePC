@@ -54,10 +54,15 @@ public partial class MainWindow : Window
 
     private async void OnAddDeviceClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var dialog = new AddDeviceWindow();
+        if (DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new AddDeviceWindow(viewModel.RemoteHostClient);
         var request = await dialog.ShowDialog<RemotePC.Models.PcDeviceCreateRequest?>(this);
 
-        if (request is not null && DataContext is MainWindowViewModel viewModel)
+        if (request is not null)
         {
             await viewModel.AddDeviceAsync(request);
         }
@@ -71,7 +76,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = new AddDeviceWindow(pc.Device);
+        var dialog = new AddDeviceWindow(pc.Device, viewModel.RemoteHostClient);
         var request = await dialog.ShowDialog<RemotePC.Models.PcDeviceCreateRequest?>(this);
 
         if (request is not null)

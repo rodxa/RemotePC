@@ -11,4 +11,10 @@ public sealed class PcDeviceCreateRequest
     public string RustDeskId { get; init; } = string.Empty;
 
     public bool Enabled { get; init; } = true;
+
+    public int RemotePort { get; init; } = LocalAppOptions.DefaultRemotePort;
+
+    public bool RemoteEnabled { get; init; }
+
+    public Guid? RemoteDeviceId { get; init; }
 }

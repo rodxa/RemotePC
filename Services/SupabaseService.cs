@@ -78,7 +78,11 @@ public sealed class SupabaseService : IDisposable
                 p_device_name = pc.DeviceName,
                 p_display_name = pc.DisplayName,
                 p_tailscale_ip = pc.TailscaleIp,
-                p_rustdesk_id = pc.RustDeskId
+                p_rustdesk_id = pc.RustDeskId,
+                p_enabled = pc.Enabled,
+                p_remote_enabled = pc.RemoteEnabled,
+                p_remote_port = pc.RemotePort,
+                p_remote_device_id = pc.RemoteDeviceId
             },
             JsonOptions);
 
@@ -116,7 +120,10 @@ public sealed class SupabaseService : IDisposable
                 p_display_name = pc.DisplayName,
                 p_tailscale_ip = pc.TailscaleIp,
                 p_rustdesk_id = pc.RustDeskId,
-                p_enabled = pc.Enabled
+                p_enabled = pc.Enabled,
+                p_remote_enabled = pc.RemoteEnabled,
+                p_remote_port = pc.RemotePort,
+                p_remote_device_id = pc.RemoteDeviceId
             },
             JsonOptions);
 

@@ -67,7 +67,7 @@ The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detec
 
 ## Remote Command Password And Credentials
 
-Each install gets a local device id and a random 256-bit host token. They are stored in `%APPDATA%\RemotePC\credentials.json` encrypted with Windows DPAPI for the current user. Supabase stores only non-secret metadata such as `remote_device_id`, port, and version.
+Each install gets a local device id and a random 256-bit host token. They are stored in `%APPDATA%\RemotePC\credentials.json` encrypted with Windows DPAPI for the current user. Supabase stores only non-secret metadata such as `remote_device_id`, port, and version. The local device id is shown in Settings -> Remote Control and can be copied into Add/Edit PC as the Remote Device ID; Add/Edit can also fetch it automatically from a running RemotePC host over Tailscale.
 
 On the host, open Settings -> Remote Control and set a Remote Command password. This password authorizes command execution only: shutdown, restart, lock, and saved custom actions. It is not a RustDesk password and does not replace RustDesk unattended access.
 

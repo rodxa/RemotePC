@@ -73,6 +73,8 @@ public partial class SettingsWindowViewModel : ObservableObject
 
     public string SettingsPath => AppConfiguration.GetSettingsPath();
 
+    public string LocalDeviceId => _credentials.GetOrCreateLocalDeviceId();
+
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     public string TailscaleStatus => new TailscaleService().GetLocalTailscaleIp() is { } ip

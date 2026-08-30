@@ -98,6 +98,131 @@ $$;
 comment on function public.update_pc_remote_metadata(bigint, boolean, integer, uuid, text) is
   'Publishes non-secret host metadata for one RemotePC row. Pairing/auth secrets remain local and DPAPI-protected.';
 
+drop function if exists public.add_pc_device(text, text, text, text);
+create or replace function public.add_pc_device(
+  p_device_name text,
+  p_display_name text default null,
+  p_tailscale_ip text default null,
+  p_rustdesk_id text default null,
+  p_enabled boolean default true,
+  p_remote_enabled boolean default false,
+  p_remote_port integer default 47632,
+  p_remote_device_id uuid default null
+)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_id bigint;
+begin
+  if nullif(trim(p_device_name), '') is null then
+    raise exception 'device_name is required';
+  end if;
+
+  if nullif(trim(p_tailscale_ip), '') is null then
+    raise exception 'tailscale_ip is required';
+  end if;
+
+  if nullif(trim(p_rustdesk_id), '') is null then
+    raise exception 'rustdesk_id is required';
+  end if;
+
+  if p_remote_port is null or p_remote_port < 1 or p_remote_port > 65535 then
+    raise exception 'remote_port must be between 1 and 65535';
+  end if;
+
+  insert into public.pc_remote_control (
+    device_name,
+    display_name,
+    command_id,
+    tailscale_ip,
+    rustdesk_id,
+    enabled,
+    sort_order,
+    updated_at,
+    remote_enabled,
+    remote_port,
+    remote_device_id
+  )
+  values (
+    trim(p_device_name),
+    nullif(trim(p_display_name), ''),
+    0,
+    trim(p_tailscale_ip)::inet,
+    regexp_replace(trim(p_rustdesk_id), '\s+', '', 'g'),
+    coalesce(p_enabled, true),
+    coalesce((select max(sort_order) + 10 from public.pc_remote_control), 0),
+    now(),
+    coalesce(p_remote_enabled, false),
+    p_remote_port,
+    p_remote_device_id
+  )
+  returning id into inserted_id;
+
+  return inserted_id;
+end;
+$$;
+
+comment on function public.add_pc_device(text, text, text, text, boolean, boolean, integer, uuid) is
+  'Adds one RemotePC row with safe user-editable fields and optional non-secret host metadata. RustDesk passwords and host tokens must not be stored.';
+
+drop function if exists public.update_pc_device(bigint, text, text, text, text, boolean);
+create or replace function public.update_pc_device(
+  p_id bigint,
+  p_device_name text,
+  p_display_name text default null,
+  p_tailscale_ip text default null,
+  p_rustdesk_id text default null,
+  p_enabled boolean default true,
+  p_remote_enabled boolean default false,
+  p_remote_port integer default 47632,
+  p_remote_device_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if nullif(trim(p_device_name), '') is null then
+    raise exception 'device_name is required';
+  end if;
+
+  if nullif(trim(p_tailscale_ip), '') is null then
+    raise exception 'tailscale_ip is required';
+  end if;
+
+  if nullif(trim(p_rustdesk_id), '') is null then
+    raise exception 'rustdesk_id is required';
+  end if;
+
+  if p_remote_port is null or p_remote_port < 1 or p_remote_port > 65535 then
+    raise exception 'remote_port must be between 1 and 65535';
+  end if;
+
+  update public.pc_remote_control
+     set device_name = trim(p_device_name),
+         display_name = nullif(trim(p_display_name), ''),
+         tailscale_ip = trim(p_tailscale_ip)::inet,
+         rustdesk_id = regexp_replace(trim(p_rustdesk_id), '\s+', '', 'g'),
+         enabled = coalesce(p_enabled, true),
+         remote_enabled = coalesce(p_remote_enabled, false),
+         remote_port = p_remote_port,
+         remote_device_id = p_remote_device_id,
+         updated_at = now()
+   where id = p_id;
+
+  if not found then
+    raise exception 'PC row % was not found', p_id;
+  end if;
+end;
+$$;
+
+comment on function public.update_pc_device(bigint, text, text, text, text, boolean, boolean, integer, uuid) is
+  'Updates safe user-editable RemotePC fields and optional non-secret host metadata. RustDesk passwords and host tokens must not be stored.';
+
 alter table public.pc_commands enable row level security;
 
 revoke all on public.pc_commands from anon, authenticated;
@@ -145,5 +270,11 @@ using (true);
 
 revoke all on function public.update_pc_remote_metadata(bigint, boolean, integer, uuid, text) from public;
 grant execute on function public.update_pc_remote_metadata(bigint, boolean, integer, uuid, text) to anon, authenticated;
+
+revoke all on function public.add_pc_device(text, text, text, text, boolean, boolean, integer, uuid) from public;
+grant execute on function public.add_pc_device(text, text, text, text, boolean, boolean, integer, uuid) to anon, authenticated;
+
+revoke all on function public.update_pc_device(bigint, text, text, text, text, boolean, boolean, integer, uuid) from public;
+grant execute on function public.update_pc_device(bigint, text, text, text, text, boolean, boolean, integer, uuid) to anon, authenticated;
 
 notify pgrst, 'reload schema';

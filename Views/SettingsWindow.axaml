@@ -76,6 +76,11 @@
           <TextBlock Text="{Binding TailscaleStatus}"
                      Classes="subtle" />
 
+          <TextBlock Text="Remote Device ID"
+                     Classes="label" />
+          <TextBox Text="{Binding LocalDeviceId, Mode=OneWay}"
+                   IsReadOnly="True" />
+
           <Border Margin="0,14,0,0"
                   Padding="10"
                   CornerRadius="8"
