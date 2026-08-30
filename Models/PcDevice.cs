@@ -34,5 +34,17 @@ public sealed class PcDevice
     [JsonPropertyName("updated_at")]
     public DateTimeOffset? UpdatedAt { get; init; }
 
+    [JsonPropertyName("remote_port")]
+    public int RemotePort { get; init; } = LocalAppOptions.DefaultRemotePort;
+
+    [JsonPropertyName("remote_enabled")]
+    public bool RemoteEnabled { get; init; }
+
+    [JsonPropertyName("remote_device_id")]
+    public Guid? RemoteDeviceId { get; init; }
+
+    [JsonPropertyName("remote_version")]
+    public string? RemoteVersion { get; init; }
+
     public string FriendlyName => string.IsNullOrWhiteSpace(DisplayName) ? DeviceName : DisplayName;
 }

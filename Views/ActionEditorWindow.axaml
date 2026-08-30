@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemotePC.ViewModels"
+        x:Class="RemotePC.Views.ActionEditorWindow"
+        x:DataType="vm:ActionEditorWindowViewModel"
+        Title="{Binding WindowTitle}"
+        Width="620"
+        Height="760"
+        MinWidth="520"
+        MinHeight="620"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,10,0,5" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+    <TextBlock Text="{Binding WindowTitle}"
+               FontSize="22"
+               FontWeight="SemiBold" />
+
+    <ScrollViewer Grid.Row="1"
+                  Margin="0,10,0,0"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <TextBlock Text="Name" Classes="label" />
+        <TextBox Text="{Binding Name}" />
+
+        <TextBlock Text="Description" Classes="label" />
+        <TextBox Text="{Binding Description}" />
+
+        <TextBlock Text="Machine" Classes="label" />
+        <TextBlock Text="{Binding Device.FriendlyName}"
+                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+
+        <TextBlock Text="Category" Classes="label" />
+        <TextBox Text="{Binding Category}" />
+
+        <TextBlock Text="Type" Classes="label" />
+        <ComboBox ItemsSource="{Binding CommandTypes}"
+                  SelectedItem="{Binding CommandType}"
+                  MinWidth="180" />
+
+        <TextBlock Text="PowerShell command"
+                   Classes="label"
+                   IsVisible="{Binding IsPowerShell}" />
+        <TextBox Text="{Binding Command}"
+                 AcceptsReturn="True"
+                 MinHeight="90"
+                 IsVisible="{Binding IsPowerShell}" />
+
+        <TextBlock Text="Executable"
+                   Classes="label"
+                   IsVisible="{Binding IsProcess}" />
+        <TextBox Text="{Binding Command}"
+                 IsVisible="{Binding IsProcess}" />
+
+        <TextBlock Text="Arguments"
+                   Classes="label"
+                   IsVisible="{Binding IsProcess}" />
+        <TextBox Text="{Binding Arguments}"
+                 IsVisible="{Binding IsProcess}" />
+
+        <TextBlock Text="Working directory" Classes="label" />
+        <TextBox Text="{Binding WorkingDirectory}" />
+
+        <Grid ColumnDefinitions="*,*"
+              ColumnSpacing="12">
+          <StackPanel>
+            <TextBlock Text="Timeout seconds" Classes="label" />
+            <TextBox Text="{Binding TimeoutSeconds}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1">
+            <TextBlock Text="Sort order" Classes="label" />
+            <TextBox Text="{Binding SortOrder}" />
+          </StackPanel>
+        </Grid>
+
+        <CheckBox Content="Require confirmation"
+                  IsChecked="{Binding RequireConfirmation}"
+                  Margin="0,12,0,0" />
+        <CheckBox Content="Enabled"
+                  IsChecked="{Binding Enabled}"
+                  Margin="0,8,0,0" />
+
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Classes="error"
+                   Margin="0,12,0,0"
+                   IsVisible="{Binding HasError}" />
+
+        <TextBox Text="{Binding ResultText}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 MinHeight="150"
+                 Margin="0,12,0,0"
+                 IsVisible="{Binding HasResult}" />
+      </StackPanel>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="2"
+                Orientation="Horizontal"
+                HorizontalAlignment="Right"
+                Spacing="8"
+                Margin="0,16,0,0">
+      <Button Content="Delete"
+              Click="OnDeleteClick"
+              IsVisible="{Binding CanDelete}" />
+      <Button Content="Test"
+              Command="{Binding TestCommand}" />
+      <Button Content="Cancel"
+              Command="{Binding CancelCommand}" />
+      <Button Content="Save"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </Grid>
+</Window>

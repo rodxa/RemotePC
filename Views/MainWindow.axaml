@@ -166,6 +166,9 @@
                     <TextBlock Text="{Binding TailscaleIp}"
                                Classes="subtle"
                                TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding RemoteHostText}"
+                               Classes="subtle"
+                               Margin="0,2,0,0" />
                     <TextBlock Text="{Binding LastSeenText}"
                                Classes="subtle"
                                Margin="0,2,0,0" />
@@ -210,6 +213,9 @@
                     <Button MinWidth="92"
                             Command="{Binding ConnectCommand}"
                             Content="{Binding ButtonText}" />
+                    <Button MinWidth="92"
+                            Click="OnAdvancedDeviceClick"
+                            Content="Advanced" />
                   </StackPanel>
                 </Grid>
               </Border>

@@ -11,6 +11,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
     private readonly RustDeskService _rustDeskService;
+    private readonly RemoteHostClient _remoteHostClient;
     private readonly CancellationToken _applicationCancellationToken;
     private CancellationTokenSource? _refreshCts;
 
@@ -25,15 +26,23 @@ public partial class MainWindowViewModel : ObservableObject
         SupabaseService supabaseService,
         PcStatusService statusService,
         RustDeskService rustDeskService,
+        RemoteHostClient remoteHostClient,
         CancellationToken applicationCancellationToken)
     {
         _supabaseService = supabaseService;
         _statusService = statusService;
         _rustDeskService = rustDeskService;
+        _remoteHostClient = remoteHostClient;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
     public ObservableCollection<PcViewModel> Pcs { get; } = [];
+
+    public SupabaseService SupabaseService => _supabaseService;
+
+    public RemoteHostClient RemoteHostClient => _remoteHostClient;
+
+    public CancellationToken ApplicationCancellationToken => _applicationCancellationToken;
 
     public bool HasPcs => Pcs.Count > 0;
 
@@ -100,6 +109,7 @@ public partial class MainWindowViewModel : ObservableObject
                 _supabaseService,
                 _statusService,
                 _rustDeskService,
+                _remoteHostClient,
                 _applicationCancellationToken);
 
             Pcs.Add(pc);
@@ -215,6 +225,7 @@ public partial class MainWindowViewModel : ObservableObject
                     _supabaseService,
                     _statusService,
                     _rustDeskService,
+                    _remoteHostClient,
                     _applicationCancellationToken));
             }
 

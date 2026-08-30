@@ -14,6 +14,7 @@ public partial class PcViewModel : ObservableObject
     private readonly SupabaseService _supabaseService;
     private readonly PcStatusService _statusService;
     private readonly RustDeskService _rustDeskService;
+    private readonly RemoteHostClient _remoteHostClient;
     private readonly CancellationToken _applicationCancellationToken;
     private CancellationTokenSource? _connectCts;
 
@@ -34,17 +35,25 @@ public partial class PcViewModel : ObservableObject
     [ObservableProperty]
     private string? errorMessage;
 
+    [ObservableProperty]
+    private bool isRemoteHostAvailable;
+
+    [ObservableProperty]
+    private string remoteHostText = "RemotePC: Checking...";
+
     public PcViewModel(
         PcDevice device,
         SupabaseService supabaseService,
         PcStatusService statusService,
         RustDeskService rustDeskService,
+        RemoteHostClient remoteHostClient,
         CancellationToken applicationCancellationToken)
     {
         Device = device;
         _supabaseService = supabaseService;
         _statusService = statusService;
         _rustDeskService = rustDeskService;
+        _remoteHostClient = remoteHostClient;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
@@ -109,6 +118,8 @@ public partial class PcViewModel : ObservableObject
         {
             IsOnline = false;
             StatusText = "Disabled";
+            IsRemoteHostAvailable = false;
+            RemoteHostText = "RemotePC: Disabled";
             return;
         }
 
@@ -116,6 +127,8 @@ public partial class PcViewModel : ObservableObject
         {
             IsOnline = true;
             StatusText = "This PC";
+            IsRemoteHostAvailable = true;
+            RemoteHostText = "RemotePC: Local";
             return;
         }
 
@@ -123,12 +136,17 @@ public partial class PcViewModel : ObservableObject
         {
             IsOnline = false;
             StatusText = "Missing Tailscale IP";
+            IsRemoteHostAvailable = false;
+            RemoteHostText = "RemotePC: Unavailable";
             return;
         }
 
         StatusText = "Checking...";
         IsOnline = await IsPcOnlineAsync(cancellationToken);
-        StatusText = IsOnline ? "Online" : "Offline";
+        var health = await _remoteHostClient.GetHealthAsync(Device, cancellationToken);
+        IsRemoteHostAvailable = health?.HostEnabled == true;
+        RemoteHostText = IsRemoteHostAvailable ? "RemotePC: Ready" : "RemotePC: Unavailable";
+        StatusText = IsRemoteHostAvailable ? "Ready" : IsOnline ? "Reachable" : "Offline";
     }
 
     [RelayCommand(CanExecute = nameof(CanConnect), AllowConcurrentExecutions = true)]

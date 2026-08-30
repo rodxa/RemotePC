@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using RemotePC.Models;
 
 namespace RemotePC.Configuration;
 
@@ -9,46 +10,57 @@ public static class AppConfiguration
 
     public static SupabaseOptions Load()
     {
+        return LoadAll().Supabase.Validated();
+    }
+
+    public static AppSettings LoadAll()
+    {
         var path = GetSettingsPath();
         if (!File.Exists(path))
         {
-            return SupabaseOptions.Missing($"Create {FileName} next to the executable and add your Supabase URL and publishable key.");
+            return new AppSettings
+            {
+                Supabase = SupabaseOptions.Missing($"Create {FileName} next to the executable and add your Supabase URL and publishable key."),
+                Local = new LocalAppOptions().Normalized()
+            };
         }
 
         try
         {
             var json = File.ReadAllText(path);
             var root = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions);
-            var options = root?.Supabase ?? SupabaseOptions.Missing($"The {FileName} file does not contain a Supabase section.");
-            return options.Validated();
+            return new AppSettings
+            {
+                Supabase = (root?.Supabase ?? SupabaseOptions.Missing($"The {FileName} file does not contain a Supabase section.")).Validated(),
+                Local = (root?.Local ?? new LocalAppOptions()).Normalized()
+            };
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
-            return SupabaseOptions.Missing($"Could not read {FileName}: {ex.Message}");
+            return new AppSettings
+            {
+                Supabase = SupabaseOptions.Missing($"Could not read {FileName}: {ex.Message}"),
+                Local = new LocalAppOptions().Normalized()
+            };
         }
     }
 
     public static SupabaseOptions LoadForEditing()
     {
-        var path = GetSettingsPath();
-        if (!File.Exists(path))
-        {
-            return new SupabaseOptions();
-        }
-
-        try
-        {
-            var json = File.ReadAllText(path);
-            var root = JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions);
-            return root?.Supabase ?? new SupabaseOptions();
-        }
-        catch
-        {
-            return new SupabaseOptions();
-        }
+        return LoadAll().Supabase.IsConfigured ? LoadAll().Supabase : new SupabaseOptions();
     }
 
     public static void Save(SupabaseOptions options)
+    {
+        var current = LoadAll();
+        SaveAll(new AppSettings
+        {
+            Supabase = options,
+            Local = current.Local
+        });
+    }
+
+    public static void SaveAll(AppSettings settings)
     {
         var path = GetSettingsPath();
         var directory = Path.GetDirectoryName(path);
@@ -57,16 +69,17 @@ public static class AppConfiguration
             Directory.CreateDirectory(directory);
         }
 
-        var settings = new AppSettings
+        var saved = new AppSettings
         {
             Supabase = new SupabaseOptions
             {
-                Url = options.Url.Trim(),
-                PublishableKey = options.PublishableKey.Trim()
-            }
+                Url = settings.Supabase.Url.Trim(),
+                PublishableKey = settings.Supabase.PublishableKey.Trim()
+            },
+            Local = settings.Local.Normalized()
         };
 
-        var json = JsonSerializer.Serialize(settings, WriteOptions);
+        var json = JsonSerializer.Serialize(saved, WriteOptions);
         File.WriteAllText(path, json);
     }
 
@@ -94,9 +107,12 @@ public static class AppConfiguration
         WriteIndented = true
     };
 
-    private sealed class AppSettings
+    public sealed class AppSettings
     {
         [JsonPropertyName("Supabase")]
-        public SupabaseOptions? Supabase { get; set; }
+        public SupabaseOptions Supabase { get; set; } = new();
+
+        [JsonPropertyName("Local")]
+        public LocalAppOptions Local { get; set; } = new();
     }
 }

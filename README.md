@@ -1,101 +1,138 @@
 # RemotePC
 
-RemotePC is a small Avalonia desktop utility for waking and connecting to home PCs through a Supabase-driven command table. It loads PCs from Supabase, checks each Tailscale IP concurrently, sends an atomic wake command when needed, waits for the PC to become reachable, and then opens RustDesk.
+RemotePC is one Avalonia desktop app that can be a controller, a tray host, or both. Wake still goes through Supabase and the ESP32-S3. Remote desktop still opens RustDesk. Host commands travel directly to another running RemotePC instance over Tailscale.
 
-## Requirements
+## Architecture
 
-- .NET SDK 9 on this machine, targeting `net9.0`
-- A Supabase project with `public.pc_remote_control`
-- Tailscale installed/configured on each managed PC
-- RustDesk installed on the client machine
+```text
+Controller RemotePC
+  |-- Supabase -> ESP32-S3 -> Wake-on-LAN
+  |-- RustDesk -> remote desktop
+  `-- Tailscale HTTP -> Host RemotePC -> built-in/custom actions
+```
 
-## Supabase Configuration
+There is no Windows Service and no separate agent executable. Host mode starts only after a Windows user logs in. RustDesk should handle login-screen access after wake/reboot; RemotePC host commands become available after the user session starts.
 
-Open the app's gear button to edit settings, or copy `appsettings.example.json` to `appsettings.json` and set:
+## Settings
+
+Settings are stored in `appsettings.json` next to the executable during publish, or in the project folder during development.
 
 ```json
 {
   "Supabase": {
     "Url": "https://YOUR_PROJECT.supabase.co",
     "PublishableKey": "YOUR_PUBLISHABLE_KEY"
+  },
+  "Local": {
+    "StartWithWindows": false,
+    "StartMinimized": false,
+    "CloseToTray": true,
+    "RemoteControlEnabled": false,
+    "NotificationsEnabled": true,
+    "MachineName": "Main PC",
+    "RemotePort": 47632
   }
 }
 ```
 
-Use a Supabase publishable key only. Do not use `service_role` or any secret key in this desktop app. `appsettings.json` is ignored by Git and copied to the build output.
+Use a Supabase publishable key only. Never put a `service_role` key, RustDesk password, host token, or pairing secret in this file.
 
-## SQL Migration
+## Tray And Startup
 
-Run [Migrations/001_extend_pc_remote_control.sql](Migrations/001_extend_pc_remote_control.sql) in the Supabase SQL editor. It adds the app fields with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, safely renames or merges `parsec_peer_id` into `rustdesk_id`, enables RLS, grants read access to rows, and creates the `wake_pc(target_id bigint)`, `add_pc_device(...)`, `update_pc_device(...)`, and `delete_pc_device(...)` RPC functions.
+RemotePC creates an Avalonia tray icon with:
 
-## Adding Another PC
+- Open RemotePC
+- Host: Enabled/Disabled
+- Status
+- Exit
 
-Use the plus button in the app to add a PC. Use each card's edit button to update its name, Tailscale IP, RustDesk ID, or enabled state. Use each card's delete button to remove its Supabase row after confirmation. The app uses RPCs for these changes and keeps direct table writes closed.
+Closing or minimizing the main window hides it to the tray when `CloseToTray` is enabled. `Exit` is the explicit shutdown path and stops the in-process host. `StartWithWindows` writes a per-user registry value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` with the current executable path and `--background`, so no administrator permission is required. `StartMinimized` or `--background` starts hidden in the tray.
 
-The app is data-driven; PCs added through the app or directly in Supabase appear without C# changes. Rows with `enabled = false` still appear, but show as disabled and cannot be connected.
+## Single Instance
 
-## ESP32 Integration
+The app uses a per-user named mutex and named pipe. If RemotePC is already running hidden in the tray and the user launches it again, the new process sends `open` to the existing process and exits. The existing instance restores the main window, so duplicate host servers are not created.
 
-The app never sends Wake-on-LAN directly. For an offline PC, it calls Supabase RPC `wake_pc`, which increments `command_id`. Your ESP32 keeps polling its row and sends Wake-on-LAN when `command_id` is greater than the last command it observed.
+## Host Mode
 
-## Tailscale
+When `RemoteControlEnabled` is true, RemotePC starts a Kestrel server inside `RemotePC.exe`. It exposes:
 
-Online detection uses the `tailscale_ip` stored in Supabase, not a home LAN address. The app also asks the configured RustDesk rendezvous server whether the row's `rustdesk_id` is online. If either Tailscale or RustDesk reports the PC online, RemotePC treats it as reachable.
+- `GET /api/health`
+- `POST /api/pairing/complete`
+- `POST /api/builtin/shutdown`
+- `POST /api/builtin/restart`
+- `POST /api/builtin/lock`
+- `POST /api/actions/{id}`
 
-## RustDesk
+The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detected, it binds to loopback only and logs the limitation. Clients use each PC row's `tailscale_ip` and `remote_port`; no public IP or router forwarding is used.
 
-Install RustDesk on the home PC. If unattended startup is required, install RustDesk rather than only using it as a temporary portable app. Configure unattended access and the permanent password inside RustDesk itself.
+## Pairing And Credentials
 
-Never put the RustDesk password in Supabase, `appsettings.json`, or source code. RustDesk handles saved unattended credentials.
+Each install gets a local device id and a random 256-bit host token. They are stored in `%APPDATA%\RemotePC\credentials.json` encrypted with Windows DPAPI for the current user. Supabase stores only non-secret metadata such as `remote_device_id`, port, and version.
 
-Find the home PC's RustDesk ID and store only that ID in `public.pc_remote_control.rustdesk_id`. Install RustDesk on the laptop/client machine too, then test a connection while the home PC is at the Windows lock screen.
+On the host, open Settings -> Remote Control -> Pair Device to create a short-lived code. On the controller, open the target PC's Advanced page and enter the code. The controller exchanges it over Tailscale and stores the returned host token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
 
-RemotePC looks for RustDesk in common Windows locations under `C:\Program Files\RustDesk`, `C:\Program Files (x86)\RustDesk`, `%LOCALAPPDATA%\Programs\RustDesk`, `%LOCALAPPDATA%\RustDesk`, and the current process `PATH`. It prefers RustDesk's `rustdesk://connection/new/<rustdesk_id>` URI launch for the selected Supabase row, then falls back to `rustdesk.exe --connect <rustdesk_id>` if the URI handler is unavailable.
+## PCs, Health, Wake, And RustDesk
 
-If a Supabase row matches the laptop's own RustDesk ID or local Tailscale IP, RemotePC marks it as `This PC` and disables Connect to prevent self-connections.
+The main cards are data-driven from `public.pc_remote_control`. A card shows whether the PC is offline, reachable, or whether the RemotePC tray host is ready. `Connect` still works without host mode: it checks Tailscale/RustDesk status, calls Supabase `wake_pc` if needed, waits for reachability, and opens RustDesk.
 
-## Architecture
+RustDesk integration stores only `rustdesk_id`; authentication stays inside RustDesk. Wake-on-LAN remains Supabase -> ESP32-S3 -> PC and is not replaced by the host listener.
 
-```text
-Laptop
-  |
-Avalonia RemotePC
-  |
-check Tailscale IP
-  |
-check RustDesk online status
-  |
-if offline
-  |
-Supabase
-  |
-ESP32-S3
-  |
-Wake-on-LAN
-  |
-Windows / RustDesk service starts
-  |
-Tailscale becomes reachable
-  |
-Avalonia launches RustDesk
-  |
-remote session
+## Custom Actions
+
+Run `Migrations/002_host_mode_and_actions.sql` after the existing migration. It adds host metadata columns and creates `public.pc_commands`.
+
+Actions are saved per machine. The controller sends only the action id to the host. The host reloads the saved action from Supabase, confirms it belongs to the local PC row, checks `enabled`, and then executes it.
+
+Supported action types:
+
+- `powershell`: runs the saved command through `pwsh.exe` if available, otherwise `powershell.exe`, with no profile, redirected stdout/stderr, cancellation, timeout, exit code, duration, and output caps.
+- `process`: launches the saved executable path with saved arguments/working directory from the logged-in user session, so GUI apps can appear normally.
+
+RemotePC also applies a local safety policy in the action editor and again on the host before execution. It blocks obvious system-destructive patterns such as disk formatting tools, boot configuration tools, registry/system permission tools, encoded PowerShell, broad recursive delete commands, and deletes aimed at Windows/user/system roots. This is a guardrail, not a sandbox: only save narrow actions you understand.
+
+Built-in Shutdown and Restart are not stored as PowerShell. They call `shutdown.exe` directly and require confirmation from the controller. Lock uses the Windows `LockWorkStation` API and is immediate.
+
+## Supabase Security
+
+`pc_commands` has RLS enabled and is granted to `authenticated` by default. This project currently has no Supabase sign-in UI, so the migration includes a commented development-only anon policy if you need local testing before adding owner-based Auth. Do not make `pc_commands` anonymously writable in production.
+
+Raw host tokens, pairing codes, private keys, and RustDesk passwords are never stored in Supabase.
+
+## Firewall
+
+The app does not require administrator privileges during normal use. If Windows Firewall blocks the host port, run PowerShell as Administrator once:
+
+```powershell
+.\setup\Configure-RemotePCFirewall.ps1 -Port 47632
 ```
 
-Tailscale is used by this application for online detection. RustDesk handles the actual remote-desktop connection.
+The rule allows TCP inbound on Private networks from Tailscale CGNAT addresses `100.64.0.0/10`. Remove it with:
 
-## Run And Build
+```powershell
+.\setup\Remove-RemotePCFirewall.ps1
+```
+
+## Build
 
 ```powershell
 dotnet restore
 dotnet build
-dotnet run
 ```
 
-## Publish For Windows
+## Publish
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish -c Release -r win-x64 --self-contained true
 ```
 
-The publish command enables single-file output and native library self-extraction to keep Avalonia startup reliable.
+Single-file publish is optional; reliability is more important than forcing a one-file output.
+
+## Manual Setup Still Required
+
+- Run `Migrations/001_extend_pc_remote_control.sql`.
+- Run `Migrations/002_host_mode_and_actions.sql`.
+- Keep Tailscale installed and logged in on each PC.
+- Keep RustDesk installed/configured for unattended access and login-screen access.
+- Enable host mode in RemotePC Settings on machines that should receive commands.
+- Pair each controller with each host from the Advanced page.
+- Add owner-based Supabase Auth/RLS before production use of `pc_commands`, or consciously apply the commented development policy only for personal testing.

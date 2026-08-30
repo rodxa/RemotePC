@@ -1,0 +1,146 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemotePC.ViewModels"
+        x:Class="RemotePC.Views.AdvancedWindow"
+        x:DataType="vm:AdvancedWindowViewModel"
+        Title="{Binding Title}"
+        Width="640"
+        Height="720"
+        MinWidth="520"
+        MinHeight="560"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.subtle">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Border.section">
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*" Margin="18">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel>
+        <TextBlock Text="{Binding Title}"
+                   FontSize="22"
+                   FontWeight="SemiBold" />
+        <TextBlock Text="{Binding Endpoint}"
+                   Classes="subtle"
+                   Margin="0,3,0,0" />
+      </StackPanel>
+      <Button Grid.Column="1"
+              Content="+ Add Action"
+              Click="OnAddActionClick"
+              VerticalAlignment="Top" />
+    </Grid>
+
+    <ScrollViewer Grid.Row="1"
+                  Margin="0,14,0,0"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        <ProgressBar IsIndeterminate="True"
+                     Height="3"
+                     IsVisible="{Binding IsLoading}" />
+
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="Pairing"
+                       FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto"
+                  Margin="0,10,0,0">
+              <TextBox Text="{Binding PairingCode}"
+                       PlaceholderText="Pairing code from host PC" />
+              <Button Grid.Column="1"
+                      Content="Pair"
+                      Command="{Binding PairCommand}"
+                      Margin="8,0,0,0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="section">
+          <StackPanel>
+            <TextBlock Text="System"
+                       FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal"
+                        Spacing="8"
+                        Margin="0,10,0,0">
+              <Button Content="Restart"
+                      Click="OnRestartClick" />
+              <Button Content="Shutdown"
+                      Click="OnShutdownClick" />
+              <Button Content="Lock"
+                      Click="OnLockClick" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <ItemsControl ItemsSource="{Binding Categories}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:ActionCategoryViewModel">
+              <Border Classes="section">
+                <StackPanel>
+                  <TextBlock Text="{Binding Name}"
+                             FontWeight="SemiBold" />
+                  <ItemsControl ItemsSource="{Binding Actions}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="vm:ActionItemViewModel">
+                        <Grid ColumnDefinitions="*,Auto,Auto"
+                              Margin="0,10,0,0">
+                          <StackPanel>
+                            <TextBlock Text="{Binding Name}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Description}"
+                                       Classes="subtle" />
+                          </StackPanel>
+                          <Button Grid.Column="1"
+                                  Content="Run"
+                                  Click="OnRunActionClick"
+                                  Margin="8,0,0,0" />
+                          <Button Grid.Column="2"
+                                  Content="Edit"
+                                  Click="OnEditActionClick"
+                                  Margin="8,0,0,0" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Border Classes="section"
+                IsVisible="{Binding HasResult}">
+          <StackPanel>
+            <TextBlock Text="Result"
+                       FontWeight="SemiBold" />
+            <TextBox Text="{Binding ResultText}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     MinHeight="180"
+                     Margin="0,10,0,0" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding ErrorMessage}"
+                   Classes="error"
+                   IsVisible="{Binding HasError}" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>
