@@ -101,7 +101,7 @@ public sealed class RemoteHostClient
 
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
-                return RemoteAuthorizationResult.Failed("Wrong Remote Control password.");
+                return RemoteAuthorizationResult.Failed("Wrong Remote Command password.");
             }
 
             if (!response.IsSuccessStatusCode)
@@ -137,7 +137,7 @@ public sealed class RemoteHostClient
         var token = _credentials.GetHostTokenForPc(device.Id);
         if (string.IsNullOrWhiteSpace(token))
         {
-            return ActionExecutionResult.Failed("This PC is not authorized. Open Advanced and enter its Remote Control password first.");
+            return ActionExecutionResult.Failed("This PC is not authorized. Open Advanced and enter its Remote Command password first.");
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

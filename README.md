@@ -65,11 +65,13 @@ When `RemoteControlEnabled` is true, RemotePC starts a Kestrel server inside `Re
 
 The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detected reliably, it binds to all IPv4 interfaces and logs the limitation. Keep the firewall rule restricted to Tailscale/private traffic. Clients use each PC row's `tailscale_ip` and `remote_port`; no public IP or router forwarding is used.
 
-## Password Authorization And Credentials
+## Remote Command Password And Credentials
 
 Each install gets a local device id and a random 256-bit host token. They are stored in `%APPDATA%\RemotePC\credentials.json` encrypted with Windows DPAPI for the current user. Supabase stores only non-secret metadata such as `remote_device_id`, port, and version.
 
-On the host, open Settings -> Remote Control and set a Remote Control password. On the controller, open the target PC's Advanced page and enter that password once. The controller exchanges it over Tailscale for a host token and stores that token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
+On the host, open Settings -> Remote Control and set a Remote Command password. This password authorizes command execution only: shutdown, restart, lock, and saved custom actions. It is not a RustDesk password and does not replace RustDesk unattended access.
+
+On the controller, open the target PC's Advanced page and enter that password once. The controller exchanges it over Tailscale for a host token and stores that token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
 
 The password itself is not stored in plaintext. The host stores a salted PBKDF2-SHA256 verifier inside the DPAPI-protected credentials file. The password exchange uses plain HTTP over Tailscale, so only use this on your private tailnet; do not expose the host port to the public internet.
 
@@ -96,7 +98,7 @@ Built-in Shutdown and Restart are not stored as PowerShell. They call `shutdown.
 
 ## Supabase Security
 
-`pc_commands` has RLS enabled. Because this app currently uses a publishable key without Supabase sign-in, the migration grants `anon` access to manage saved action definitions. This is practical for a trusted personal project, but not production multi-user security. Anyone with the Supabase URL and publishable key could read or change action definitions, although they still cannot execute commands on a host without the Remote Control password/token and the host-side safety checks.
+`pc_commands` has RLS enabled. Because this app currently uses a publishable key without Supabase sign-in, the migration grants `anon` access to manage saved action definitions. This is practical for a trusted personal project, but not production multi-user security. Anyone with the Supabase URL and publishable key could read or change action definitions, although they still cannot execute commands on a host without the Remote Command password/token and the host-side safety checks.
 
 Raw host tokens, pairing codes, private keys, and RustDesk passwords are never stored in Supabase.
 
@@ -136,5 +138,5 @@ Single-file publish is optional; reliability is more important than forcing a on
 - Keep Tailscale installed and logged in on each PC.
 - Keep RustDesk installed/configured for unattended access and login-screen access.
 - Enable host mode in RemotePC Settings on machines that should receive commands.
-- Set a Remote Control password on each host, then authorize each controller from the Advanced page.
+- Set a Remote Command password on each host, then authorize each controller from the Advanced page.
 - Add owner-based Supabase Auth/RLS before production or shared use of `pc_commands`.

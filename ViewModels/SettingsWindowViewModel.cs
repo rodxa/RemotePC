@@ -65,8 +65,8 @@ public partial class SettingsWindowViewModel : ObservableObject
         MachineName = settings.Local.MachineName;
         RemotePort = settings.Local.RemotePort.ToString();
         PasswordStatus = _credentials.HasHostPassword()
-            ? "Password is configured. Leave the fields empty to keep it."
-            : "No Remote Control password is configured.";
+            ? "Remote Command password is configured. Leave the fields empty to keep it."
+            : "No Remote Command password is configured.";
     }
 
     public event EventHandler<bool>? CloseRequested;
@@ -110,13 +110,13 @@ public partial class SettingsWindowViewModel : ObservableObject
         {
             if (RemoteControlPassword.Length < 8)
             {
-                ErrorMessage = "Remote Control password must be at least 8 characters.";
+                ErrorMessage = "Remote Command password must be at least 8 characters.";
                 return;
             }
 
             if (!string.Equals(RemoteControlPassword, ConfirmRemoteControlPassword, StringComparison.Ordinal))
             {
-                ErrorMessage = "Remote Control passwords do not match.";
+                ErrorMessage = "Remote Command passwords do not match.";
                 return;
             }
         }

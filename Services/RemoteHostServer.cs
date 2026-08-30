@@ -127,7 +127,7 @@ public sealed class RemoteHostServer : IAsyncDisposable
             if (!_credentials.HasHostPassword())
             {
                 _logger.Warn("Password authorization rejected because no host password is configured");
-                return Results.BadRequest(ActionExecutionResult.Failed("No Remote Control password is configured on this host."));
+                return Results.BadRequest(ActionExecutionResult.Failed("No Remote Command password is configured on this host."));
             }
 
             if (!_credentials.VerifyHostPassword(request.Password))

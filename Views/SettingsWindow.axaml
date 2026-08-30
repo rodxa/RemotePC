@@ -81,14 +81,17 @@
                   CornerRadius="8"
                   Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
             <StackPanel>
-              <TextBlock Text="Remote password"
+              <TextBlock Text="Remote Command password"
                          FontWeight="SemiBold" />
+              <TextBlock Text="Used only for shutdown, restart, lock, and saved actions. This is not your RustDesk password."
+                         Classes="subtle"
+                         Margin="0,4,0,0" />
               <TextBlock Text="{Binding PasswordStatus}"
                          Classes="subtle"
                          Margin="0,6,0,0" />
               <TextBox Text="{Binding RemoteControlPassword}"
                        PasswordChar="*"
-                       PlaceholderText="New Remote Control password"
+                       PlaceholderText="New Remote Command password"
                        Margin="0,10,0,0" />
               <TextBox Text="{Binding ConfirmRemoteControlPassword}"
                        PasswordChar="*"

@@ -88,7 +88,7 @@ public partial class AdvancedWindowViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(RemoteControlPassword))
         {
-            ErrorMessage = "Enter the Remote Control password configured on the host PC.";
+            ErrorMessage = "Enter the Remote Command password configured on the host PC.";
             return;
         }
 

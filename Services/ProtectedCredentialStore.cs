@@ -73,7 +73,7 @@ public sealed class ProtectedCredentialStore
     {
         if (string.IsNullOrWhiteSpace(password))
         {
-            throw new ArgumentException("Remote control password cannot be empty.", nameof(password));
+            throw new ArgumentException("Remote Command password cannot be empty.", nameof(password));
         }
 
         var credentials = Load();
