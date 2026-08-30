@@ -85,8 +85,8 @@ public sealed class RemoteHostServer : IAsyncDisposable
             }
             else
             {
-                kestrel.Listen(IPAddress.Loopback, _options.RemotePort);
-                _logger.Warn($"Tailscale IP was not detectable; host bound to loopback:{_options.RemotePort}");
+                kestrel.Listen(IPAddress.Any, _options.RemotePort);
+                _logger.Warn($"Tailscale IP was not detectable; host bound to all IPv4 interfaces on port {_options.RemotePort}. Keep the firewall restricted to Tailscale/private traffic.");
             }
         });
 
@@ -124,6 +124,12 @@ public sealed class RemoteHostServer : IAsyncDisposable
 
         routes.MapPost("/api/auth/token", (RemotePasswordRequest request) =>
         {
+            if (!_credentials.HasHostPassword())
+            {
+                _logger.Warn("Password authorization rejected because no host password is configured");
+                return Results.BadRequest(ActionExecutionResult.Failed("No Remote Control password is configured on this host."));
+            }
+
             if (!_credentials.VerifyHostPassword(request.Password))
             {
                 _logger.Warn("Password authorization rejected");

@@ -96,9 +96,9 @@ public partial class AdvancedWindowViewModel : ObservableObject
         ErrorMessage = null;
         try
         {
-            var authorized = await _remoteHostClient.AuthorizeAsync(Device, RemoteControlPassword, _applicationCancellationToken);
-            ResultText = authorized ? "Authorization succeeded." : "Authorization failed. Check the password and host availability.";
-            if (authorized)
+            var authorization = await _remoteHostClient.AuthorizeAsync(Device, RemoteControlPassword, _applicationCancellationToken);
+            ResultText = authorization.Message;
+            if (authorization.Success)
             {
                 RemoteControlPassword = string.Empty;
             }

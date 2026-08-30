@@ -57,13 +57,13 @@ The app uses a per-user named mutex and named pipe. If RemotePC is already runni
 When `RemoteControlEnabled` is true, RemotePC starts a Kestrel server inside `RemotePC.exe`. It exposes:
 
 - `GET /api/health`
-- `POST /api/pairing/complete`
+- `POST /api/auth/token`
 - `POST /api/builtin/shutdown`
 - `POST /api/builtin/restart`
 - `POST /api/builtin/lock`
 - `POST /api/actions/{id}`
 
-The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detected, it binds to loopback only and logs the limitation. Clients use each PC row's `tailscale_ip` and `remote_port`; no public IP or router forwarding is used.
+The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detected reliably, it binds to all IPv4 interfaces and logs the limitation. Keep the firewall rule restricted to Tailscale/private traffic. Clients use each PC row's `tailscale_ip` and `remote_port`; no public IP or router forwarding is used.
 
 ## Password Authorization And Credentials
 
@@ -96,7 +96,7 @@ Built-in Shutdown and Restart are not stored as PowerShell. They call `shutdown.
 
 ## Supabase Security
 
-`pc_commands` has RLS enabled and is granted to `authenticated` by default. This project currently has no Supabase sign-in UI, so the migration includes a commented development-only anon policy if you need local testing before adding owner-based Auth. Do not make `pc_commands` anonymously writable in production.
+`pc_commands` has RLS enabled. Because this app currently uses a publishable key without Supabase sign-in, the migration grants `anon` access to manage saved action definitions. This is practical for a trusted personal project, but not production multi-user security. Anyone with the Supabase URL and publishable key could read or change action definitions, although they still cannot execute commands on a host without the Remote Control password/token and the host-side safety checks.
 
 Raw host tokens, pairing codes, private keys, and RustDesk passwords are never stored in Supabase.
 
@@ -137,4 +137,4 @@ Single-file publish is optional; reliability is more important than forcing a on
 - Keep RustDesk installed/configured for unattended access and login-screen access.
 - Enable host mode in RemotePC Settings on machines that should receive commands.
 - Set a Remote Control password on each host, then authorize each controller from the Advanced page.
-- Add owner-based Supabase Auth/RLS before production use of `pc_commands`, or consciously apply the commented development policy only for personal testing.
+- Add owner-based Supabase Auth/RLS before production or shared use of `pc_commands`.

@@ -101,16 +101,27 @@ comment on function public.update_pc_remote_metadata(bigint, boolean, integer, u
 alter table public.pc_commands enable row level security;
 
 revoke all on public.pc_commands from anon, authenticated;
+grant select, insert, update, delete on public.pc_commands to anon;
 grant select, insert, update, delete on public.pc_commands to authenticated;
+grant usage, select on sequence public.pc_commands_id_seq to anon;
 grant usage, select on sequence public.pc_commands_id_seq to authenticated;
 
+drop policy if exists "RemotePC anon can manage actions" on public.pc_commands;
 drop policy if exists "RemotePC authenticated users can read actions" on public.pc_commands;
 drop policy if exists "RemotePC authenticated users can insert actions" on public.pc_commands;
 drop policy if exists "RemotePC authenticated users can update actions" on public.pc_commands;
 drop policy if exists "RemotePC authenticated users can delete actions" on public.pc_commands;
 
--- Production policy placeholder: add owner columns and replace these authenticated-role
--- policies with owner checks once Supabase Auth users are modeled in this project.
+-- This desktop app currently uses a publishable key without Supabase Auth, so anon
+-- can manage saved action definitions. This is acceptable only for a trusted
+-- personal project. For production or shared use, add Supabase Auth ownership
+-- columns and replace this policy with owner checks.
+create policy "RemotePC anon can manage actions"
+on public.pc_commands for all
+to anon
+using (true)
+with check (true);
+
 create policy "RemotePC authenticated users can read actions"
 on public.pc_commands for select
 to authenticated
@@ -134,15 +145,5 @@ using (true);
 
 revoke all on function public.update_pc_remote_metadata(bigint, boolean, integer, uuid, text) from public;
 grant execute on function public.update_pc_remote_metadata(bigint, boolean, integer, uuid, text) to anon, authenticated;
-
--- Development-only option if this project still has no Supabase Auth and you accept
--- local/personal trust in the publishable key:
--- grant select, insert, update, delete on public.pc_commands to anon;
--- grant usage, select on sequence public.pc_commands_id_seq to anon;
--- create policy "RemotePC development anon can manage actions"
--- on public.pc_commands for all
--- to anon
--- using (true)
--- with check (true);
 
 notify pgrst, 'reload schema';

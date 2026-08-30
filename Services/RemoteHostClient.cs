@@ -10,6 +10,7 @@ public sealed class RemoteHostClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan HealthTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan AuthorizationTimeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(20);
     private readonly HttpClient _httpClient;
     private readonly ProtectedCredentialStore _credentials;
@@ -68,35 +69,63 @@ public sealed class RemoteHostClient
         return PostCommandAsync(device, $"/api/actions/{actionId}", new RemoteActionRequest { Confirmed = confirmed }, cancellationToken);
     }
 
-    public async Task<bool> AuthorizeAsync(PcDevice device, string password, CancellationToken cancellationToken)
+    public async Task<RemoteAuthorizationResult> AuthorizeAsync(PcDevice device, string password, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(device.TailscaleIp))
+        {
+            return RemoteAuthorizationResult.Failed("This PC has no Tailscale IP configured in Supabase.");
+        }
+
+        var health = await GetHealthAsync(device, cancellationToken);
+        if (health is null)
+        {
+            return RemoteAuthorizationResult.Failed(
+                $"RemotePC host is not reachable at {CreateUri(device, "/api/health")}. Check that host mode is enabled, RemotePC is running on the target Windows user session, Tailscale is connected, and the firewall allows the host port.");
+        }
+
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(CommandTimeout);
+        timeoutCts.CancelAfter(AuthorizationTimeout);
 
-        var payload = JsonSerializer.Serialize(
-            new RemotePasswordRequest
+        try
+        {
+            var payload = JsonSerializer.Serialize(
+                new RemotePasswordRequest
+                {
+                    Password = password,
+                    ClientDeviceId = _credentials.GetOrCreateLocalDeviceId()
+                },
+                JsonOptions);
+            using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.PostAsync(CreateUri(device, "/api/auth/token"), content, timeoutCts.Token);
+            var body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
-                Password = password,
-                ClientDeviceId = _credentials.GetOrCreateLocalDeviceId()
-            },
-            JsonOptions);
-        using var content = new StringContent(payload, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync(CreateUri(device, "/api/auth/token"), content, timeoutCts.Token);
-        var body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
+                return RemoteAuthorizationResult.Failed("Wrong Remote Control password.");
+            }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            return false;
+            if (!response.IsSuccessStatusCode)
+            {
+                return RemoteAuthorizationResult.Failed($"Authorization failed with {(int)response.StatusCode}: {TrimBody(body)}");
+            }
+
+            var authorization = JsonSerializer.Deserialize<RemotePasswordResponse>(body, JsonOptions);
+            if (string.IsNullOrWhiteSpace(authorization?.Token))
+            {
+                return RemoteAuthorizationResult.Failed("Host returned an empty authorization token.");
+            }
+
+            _credentials.SaveHostTokenForPc(device.Id, authorization.Token);
+            return RemoteAuthorizationResult.Succeeded();
         }
-
-        var authorization = JsonSerializer.Deserialize<RemotePasswordResponse>(body, JsonOptions);
-        if (string.IsNullOrWhiteSpace(authorization?.Token))
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return false;
+            return RemoteAuthorizationResult.Failed("Authorization timed out. The PC may be reachable, but the RemotePC host port is blocked or not listening.");
         }
-
-        _credentials.SaveHostTokenForPc(device.Id, authorization.Token);
-        return true;
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return RemoteAuthorizationResult.Failed($"Authorization failed: {ex.Message}");
+        }
     }
 
     private async Task<ActionExecutionResult> PostCommandAsync<T>(
@@ -156,5 +185,28 @@ public sealed class RemoteHostClient
         }
 
         return body.Length <= 240 ? body : string.Concat(body.AsSpan(0, 240), "...");
+    }
+}
+
+public sealed class RemoteAuthorizationResult
+{
+    private RemoteAuthorizationResult(bool success, string message)
+    {
+        Success = success;
+        Message = message;
+    }
+
+    public bool Success { get; }
+
+    public string Message { get; }
+
+    public static RemoteAuthorizationResult Succeeded()
+    {
+        return new RemoteAuthorizationResult(true, "Authorization succeeded.");
+    }
+
+    public static RemoteAuthorizationResult Failed(string message)
+    {
+        return new RemoteAuthorizationResult(false, message);
     }
 }
