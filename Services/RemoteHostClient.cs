@@ -23,7 +23,7 @@ public sealed class RemoteHostClient
 
     public async Task<RemoteHostHealth?> GetHealthAsync(PcDevice device, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(device.TailscaleIp))
+        if (string.IsNullOrWhiteSpace(device.TailscaleHost))
         {
             return null;
         }
@@ -71,7 +71,7 @@ public sealed class RemoteHostClient
 
     public async Task<RemoteAuthorizationResult> AuthorizeAsync(PcDevice device, string password, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(device.TailscaleIp))
+        if (string.IsNullOrWhiteSpace(device.TailscaleHost))
         {
             return RemoteAuthorizationResult.Failed("This PC has no Tailscale IP configured in Supabase.");
         }
@@ -174,7 +174,7 @@ public sealed class RemoteHostClient
     private static Uri CreateUri(PcDevice device, string path)
     {
         var port = device.RemotePort is > 0 and <= 65535 ? device.RemotePort : LocalAppOptions.DefaultRemotePort;
-        return new UriBuilder(Uri.UriSchemeHttp, device.TailscaleIp, port, path.TrimStart('/')).Uri;
+        return new UriBuilder(Uri.UriSchemeHttp, device.TailscaleHost, port, path.TrimStart('/')).Uri;
     }
 
     private static string TrimBody(string body)

@@ -63,7 +63,7 @@ public partial class PcViewModel : ObservableObject
 
     public string DeviceName => Device.DeviceName;
 
-    public string TailscaleIp => string.IsNullOrWhiteSpace(Device.TailscaleIp) ? "No Tailscale IP configured" : Device.TailscaleIp;
+    public string TailscaleIp => string.IsNullOrWhiteSpace(Device.TailscaleHost) ? "No Tailscale IP configured" : Device.TailscaleHost;
 
     public string LastSeenText => Device.LastSeen is null ? "No heartbeat yet" : $"Last seen {Device.LastSeen.Value.LocalDateTime:g}";
 
@@ -132,7 +132,7 @@ public partial class PcViewModel : ObservableObject
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Device.TailscaleIp))
+        if (string.IsNullOrWhiteSpace(Device.TailscaleHost))
         {
             IsOnline = false;
             StatusText = "Missing Tailscale IP";
@@ -185,7 +185,7 @@ public partial class PcViewModel : ObservableObject
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(Device.TailscaleIp))
+            if (string.IsNullOrWhiteSpace(Device.TailscaleHost))
             {
                 IsOnline = false;
                 StatusText = "Missing Tailscale IP";
@@ -275,7 +275,7 @@ public partial class PcViewModel : ObservableObject
 
     private async Task<bool> IsCurrentMachineAsync(CancellationToken cancellationToken)
     {
-        var isLocalTailscaleIp = _statusService.IsLocalTailscaleIp(Device.TailscaleIp);
+        var isLocalTailscaleIp = _statusService.IsLocalTailscaleIp(Device.TailscaleHost);
         if (isLocalTailscaleIp)
         {
             return true;
@@ -287,7 +287,7 @@ public partial class PcViewModel : ObservableObject
 
     private async Task<bool> IsPcOnlineAsync(CancellationToken cancellationToken)
     {
-        var tailscaleTask = _statusService.IsReachableAsync(Device.TailscaleIp, cancellationToken);
+        var tailscaleTask = _statusService.IsReachableAsync(Device.TailscaleHost, cancellationToken);
         var rustDeskTask = _rustDeskService.IsPeerOnlineAsync(Device.RustDeskId, cancellationToken);
 
         await Task.WhenAll(tailscaleTask, rustDeskTask);

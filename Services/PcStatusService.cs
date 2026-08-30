@@ -18,7 +18,12 @@ public sealed class PcStatusService
             return false;
         }
 
-        var normalizedIp = tailscaleIp.Trim();
+        var normalizedIp = TailscaleIpAddress.Normalize(tailscaleIp);
+        if (string.IsNullOrWhiteSpace(normalizedIp))
+        {
+            return false;
+        }
+
         var tailscaleExecutable = FindTailscaleExecutable();
         if (tailscaleExecutable is not null)
         {
@@ -44,7 +49,7 @@ public sealed class PcStatusService
 
     public bool IsLocalTailscaleIp(string? tailscaleIp)
     {
-        if (!IPAddress.TryParse(tailscaleIp?.Trim(), out var targetIp))
+        if (!IPAddress.TryParse(TailscaleIpAddress.Normalize(tailscaleIp), out var targetIp))
         {
             return false;
         }

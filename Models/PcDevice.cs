@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using RemotePC.Services;
 
 namespace RemotePC.Models;
 
@@ -47,4 +48,6 @@ public sealed class PcDevice
     public string? RemoteVersion { get; init; }
 
     public string FriendlyName => string.IsNullOrWhiteSpace(DisplayName) ? DeviceName : DisplayName;
+
+    public string TailscaleHost => TailscaleIpAddress.Normalize(TailscaleIp);
 }

@@ -40,9 +40,9 @@ public partial class AdvancedWindowViewModel : ObservableObject
 
     public string Title => $"{Device.FriendlyName} / Advanced";
 
-    public string Endpoint => string.IsNullOrWhiteSpace(Device.TailscaleIp)
+    public string Endpoint => string.IsNullOrWhiteSpace(Device.TailscaleHost)
         ? "No Tailscale IP configured"
-        : $"http://{Device.TailscaleIp}:{Device.RemotePort}";
+        : $"http://{Device.TailscaleHost}:{Device.RemotePort}";
 
     public ObservableCollection<ActionCategoryViewModel> Categories { get; } = [];
 

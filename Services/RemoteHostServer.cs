@@ -270,7 +270,7 @@ public sealed class RemoteHostServer : IAsyncDisposable
                    string.Equals(device.RemoteDeviceId?.ToString("D"), localDeviceId, StringComparison.OrdinalIgnoreCase)) ??
                devices.FirstOrDefault(device =>
                    !string.IsNullOrWhiteSpace(localTailscaleIp) &&
-                   string.Equals(device.TailscaleIp, localTailscaleIp, StringComparison.OrdinalIgnoreCase));
+                   string.Equals(device.TailscaleHost, localTailscaleIp, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task TryPublishHostMetadataAsync(CancellationToken cancellationToken)
