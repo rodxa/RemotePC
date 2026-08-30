@@ -41,4 +41,19 @@ public partial class ActionEditorWindow : Window
             await viewModel.DeleteAsync();
         }
     }
+
+    private async void OnTestClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (DataContext is not ActionEditorWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var prompt = new PasswordPromptWindow("Test Action");
+        var password = await prompt.ShowDialog<string?>(this);
+        if (!string.IsNullOrWhiteSpace(password))
+        {
+            await viewModel.TestAsync(password);
+        }
+    }
 }

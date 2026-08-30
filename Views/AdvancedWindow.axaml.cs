@@ -32,7 +32,11 @@ public partial class AdvancedWindow : Window
     {
         if (DataContext is AdvancedWindowViewModel viewModel && await ConfirmAsync("Shutdown this PC?"))
         {
-            await viewModel.ShutdownAsync(confirmed: true);
+            var password = await PromptPasswordAsync("Shutdown");
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                await viewModel.ShutdownAsync(true, password);
+            }
         }
     }
 
@@ -40,7 +44,11 @@ public partial class AdvancedWindow : Window
     {
         if (DataContext is AdvancedWindowViewModel viewModel && await ConfirmAsync("Restart this PC?"))
         {
-            await viewModel.RestartAsync(confirmed: true);
+            var password = await PromptPasswordAsync("Restart");
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                await viewModel.RestartAsync(true, password);
+            }
         }
     }
 
@@ -48,7 +56,11 @@ public partial class AdvancedWindow : Window
     {
         if (DataContext is AdvancedWindowViewModel viewModel)
         {
-            await viewModel.LockAsync();
+            var password = await PromptPasswordAsync("Lock");
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                await viewModel.LockAsync(password);
+            }
         }
     }
 
@@ -63,7 +75,11 @@ public partial class AdvancedWindow : Window
         var confirmed = !item.Action.RequireConfirmation || await ConfirmAsync($"Run {item.Action.Name}?");
         if (confirmed)
         {
-            await viewModel.ExecuteActionAsync(item.Action, confirmed: true);
+            var password = await PromptPasswordAsync(item.Action.Name);
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                await viewModel.ExecuteActionAsync(item.Action, true, password);
+            }
         }
     }
 
@@ -102,5 +118,11 @@ public partial class AdvancedWindow : Window
     {
         var dialog = new ConfirmActionWindow("Confirm Action", message, "Run");
         return await dialog.ShowDialog<bool>(this);
+    }
+
+    private async Task<string?> PromptPasswordAsync(string actionName)
+    {
+        var dialog = new PasswordPromptWindow(actionName);
+        return await dialog.ShowDialog<string?>(this);
     }
 }

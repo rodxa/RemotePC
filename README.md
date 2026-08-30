@@ -71,7 +71,7 @@ Each install gets a local device id and a random 256-bit host token. They are st
 
 On the host, open Settings -> Remote Control and set a Remote Command password. This password authorizes command execution only: shutdown, restart, lock, and saved custom actions. It is not a RustDesk password and does not replace RustDesk unattended access.
 
-On the controller, open the target PC's Advanced page and enter that password once. The controller exchanges it over Tailscale for a host token and stores that token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
+On the controller, every command opens a small password prompt. The controller exchanges that password over Tailscale for a temporary host token, runs that one command, then discards the token. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
 
 The password itself is not stored in plaintext. The host stores a salted PBKDF2-SHA256 verifier inside the DPAPI-protected credentials file. The password exchange uses plain HTTP over Tailscale, so only use this on your private tailnet; do not expose the host port to the public internet.
 

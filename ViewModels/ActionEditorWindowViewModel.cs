@@ -133,8 +133,7 @@ public partial class ActionEditorWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task TestAsync()
+    public async Task TestAsync(string password)
     {
         var request = Validate();
         if (request is null)
@@ -163,7 +162,7 @@ public partial class ActionEditorWindowViewModel : ObservableObject
                 SortOrder = request.SortOrder
             };
 
-            var result = await _advanced.ExecuteActionAsync(action, confirmed: true);
+            var result = await _advanced.ExecuteActionAsync(action, confirmed: true, password);
             ResultText =
                 $"Success: {result.Success}{Environment.NewLine}" +
                 $"Exit code: {(result.ExitCode?.ToString() ?? "n/a")}{Environment.NewLine}" +

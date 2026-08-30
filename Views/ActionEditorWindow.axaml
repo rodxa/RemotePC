@@ -115,7 +115,7 @@
               Click="OnDeleteClick"
               IsVisible="{Binding CanDelete}" />
       <Button Content="Test"
-              Command="{Binding TestCommand}" />
+              Click="OnTestClick" />
       <Button Content="Cancel"
               Command="{Binding CancelCommand}" />
       <Button Content="Save"

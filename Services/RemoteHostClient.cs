@@ -49,27 +49,27 @@ public sealed class RemoteHostClient
         }
     }
 
-    public Task<ActionExecutionResult> ShutdownAsync(PcDevice device, bool confirmed, CancellationToken cancellationToken)
+    public Task<ActionExecutionResult> ShutdownAsync(PcDevice device, bool confirmed, string password, CancellationToken cancellationToken)
     {
-        return PostCommandAsync(device, "/api/builtin/shutdown", new RemoteActionRequest { Confirmed = confirmed }, cancellationToken);
+        return PostCommandAsync(device, "/api/builtin/shutdown", new RemoteActionRequest { Confirmed = confirmed }, password, cancellationToken);
     }
 
-    public Task<ActionExecutionResult> RestartAsync(PcDevice device, bool confirmed, CancellationToken cancellationToken)
+    public Task<ActionExecutionResult> RestartAsync(PcDevice device, bool confirmed, string password, CancellationToken cancellationToken)
     {
-        return PostCommandAsync(device, "/api/builtin/restart", new RemoteActionRequest { Confirmed = confirmed }, cancellationToken);
+        return PostCommandAsync(device, "/api/builtin/restart", new RemoteActionRequest { Confirmed = confirmed }, password, cancellationToken);
     }
 
-    public Task<ActionExecutionResult> LockAsync(PcDevice device, CancellationToken cancellationToken)
+    public Task<ActionExecutionResult> LockAsync(PcDevice device, string password, CancellationToken cancellationToken)
     {
-        return PostCommandAsync(device, "/api/builtin/lock", new RemoteActionRequest { Confirmed = true }, cancellationToken);
+        return PostCommandAsync(device, "/api/builtin/lock", new RemoteActionRequest { Confirmed = true }, password, cancellationToken);
     }
 
-    public Task<ActionExecutionResult> ExecuteActionAsync(PcDevice device, long actionId, bool confirmed, CancellationToken cancellationToken)
+    public Task<ActionExecutionResult> ExecuteActionAsync(PcDevice device, long actionId, bool confirmed, string password, CancellationToken cancellationToken)
     {
-        return PostCommandAsync(device, $"/api/actions/{actionId}", new RemoteActionRequest { Confirmed = confirmed }, cancellationToken);
+        return PostCommandAsync(device, $"/api/actions/{actionId}", new RemoteActionRequest { Confirmed = confirmed }, password, cancellationToken);
     }
 
-    public async Task<RemoteAuthorizationResult> AuthorizeAsync(PcDevice device, string password, CancellationToken cancellationToken)
+    private async Task<RemoteAuthorizationResult> GetTemporaryTokenAsync(PcDevice device, string password, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(device.TailscaleHost))
         {
@@ -115,8 +115,7 @@ public sealed class RemoteHostClient
                 return RemoteAuthorizationResult.Failed("Host returned an empty authorization token.");
             }
 
-            _credentials.SaveHostTokenForPc(device.Id, authorization.Token);
-            return RemoteAuthorizationResult.Succeeded();
+            return RemoteAuthorizationResult.Succeeded(authorization.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -132,19 +131,20 @@ public sealed class RemoteHostClient
         PcDevice device,
         string path,
         T payload,
+        string password,
         CancellationToken cancellationToken)
     {
-        var token = _credentials.GetHostTokenForPc(device.Id);
-        if (string.IsNullOrWhiteSpace(token))
+        var authorization = await GetTemporaryTokenAsync(device, password, cancellationToken);
+        if (!authorization.Success || string.IsNullOrWhiteSpace(authorization.Token))
         {
-            return ActionExecutionResult.Failed("This PC is not authorized. Open Advanced and enter its Remote Command password first.");
+            return ActionExecutionResult.Failed(authorization.Message);
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(CommandTimeout);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, CreateUri(device, path));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authorization.Token);
         request.Headers.TryAddWithoutValidation("X-RemotePC-DeviceId", _credentials.GetOrCreateLocalDeviceId());
         request.Content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
 
@@ -190,23 +190,26 @@ public sealed class RemoteHostClient
 
 public sealed class RemoteAuthorizationResult
 {
-    private RemoteAuthorizationResult(bool success, string message)
+    private RemoteAuthorizationResult(bool success, string message, string? token)
     {
         Success = success;
         Message = message;
+        Token = token;
     }
 
     public bool Success { get; }
 
     public string Message { get; }
 
-    public static RemoteAuthorizationResult Succeeded()
+    public string? Token { get; }
+
+    public static RemoteAuthorizationResult Succeeded(string token)
     {
-        return new RemoteAuthorizationResult(true, "Authorization succeeded.");
+        return new RemoteAuthorizationResult(true, "Authorization succeeded.", token);
     }
 
     public static RemoteAuthorizationResult Failed(string message)
     {
-        return new RemoteAuthorizationResult(false, message);
+        return new RemoteAuthorizationResult(false, message, null);
     }
 }

@@ -19,9 +19,6 @@ public partial class AdvancedWindowViewModel : ObservableObject
     private string? errorMessage;
 
     [ObservableProperty]
-    private string remoteControlPassword = string.Empty;
-
-    [ObservableProperty]
     private string? resultText;
 
     public AdvancedWindowViewModel(
@@ -83,54 +80,24 @@ public partial class AdvancedWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task AuthorizeAsync()
+    public async Task<ActionExecutionResult> ShutdownAsync(bool confirmed, string password)
     {
-        if (string.IsNullOrWhiteSpace(RemoteControlPassword))
-        {
-            ErrorMessage = "Enter the Remote Command password configured on the host PC.";
-            return;
-        }
-
-        IsLoading = true;
-        ErrorMessage = null;
-        try
-        {
-            var authorization = await _remoteHostClient.AuthorizeAsync(Device, RemoteControlPassword, _applicationCancellationToken);
-            ResultText = authorization.Message;
-            if (authorization.Success)
-            {
-                RemoteControlPassword = string.Empty;
-            }
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            ErrorMessage = ex.Message;
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+        return await RunAsync(() => _remoteHostClient.ShutdownAsync(Device, confirmed, password, _applicationCancellationToken));
     }
 
-    public async Task<ActionExecutionResult> ShutdownAsync(bool confirmed)
+    public async Task<ActionExecutionResult> RestartAsync(bool confirmed, string password)
     {
-        return await RunAsync(() => _remoteHostClient.ShutdownAsync(Device, confirmed, _applicationCancellationToken));
+        return await RunAsync(() => _remoteHostClient.RestartAsync(Device, confirmed, password, _applicationCancellationToken));
     }
 
-    public async Task<ActionExecutionResult> RestartAsync(bool confirmed)
+    public async Task<ActionExecutionResult> LockAsync(string password)
     {
-        return await RunAsync(() => _remoteHostClient.RestartAsync(Device, confirmed, _applicationCancellationToken));
+        return await RunAsync(() => _remoteHostClient.LockAsync(Device, password, _applicationCancellationToken));
     }
 
-    public async Task<ActionExecutionResult> LockAsync()
+    public async Task<ActionExecutionResult> ExecuteActionAsync(PcCommand action, bool confirmed, string password)
     {
-        return await RunAsync(() => _remoteHostClient.LockAsync(Device, _applicationCancellationToken));
-    }
-
-    public async Task<ActionExecutionResult> ExecuteActionAsync(PcCommand action, bool confirmed)
-    {
-        return await RunAsync(() => _remoteHostClient.ExecuteActionAsync(Device, action.Id, confirmed, _applicationCancellationToken));
+        return await RunAsync(() => _remoteHostClient.ExecuteActionAsync(Device, action.Id, confirmed, password, _applicationCancellationToken));
     }
 
     public async Task<long> SaveCommandAsync(PcCommandSaveRequest action)
