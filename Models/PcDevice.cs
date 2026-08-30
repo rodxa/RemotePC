@@ -47,6 +47,15 @@ public sealed class PcDevice
     [JsonPropertyName("remote_version")]
     public string? RemoteVersion { get; init; }
 
+    [JsonPropertyName("mac_address")]
+    public string? MacAddress { get; init; }
+
+    [JsonPropertyName("wake_agent")]
+    public string? WakeAgent { get; init; }
+
+    [JsonPropertyName("wol_port")]
+    public int WolPort { get; init; } = 9;
+
     public string FriendlyName => string.IsNullOrWhiteSpace(DisplayName) ? DeviceName : DisplayName;
 
     public string TailscaleHost => TailscaleIpAddress.Normalize(TailscaleIp);

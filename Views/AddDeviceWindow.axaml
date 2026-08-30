@@ -5,7 +5,7 @@
         x:DataType="vm:AddDeviceWindowViewModel"
         Title="{Binding WindowTitle}"
         Width="520"
-        Height="640"
+        Height="760"
         MinWidth="420"
         MinHeight="560"
         CanResize="False"
@@ -79,6 +79,29 @@
                    Classes="label" />
         <TextBox Text="{Binding RemotePort}"
                  PlaceholderText="47632" />
+
+        <TextBlock Text="MAC Address"
+                   Classes="label" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Text="{Binding MacAddress}"
+                   PlaceholderText="9C:6B:00:7B:DC:44" />
+          <Button Grid.Column="1"
+                  Content="Get"
+                  Command="{Binding FetchMacAddressCommand}"
+                  Margin="8,0,0,0"
+                  MinWidth="64"
+                  ToolTip.Tip="Fetch from the RemotePC host at the Tailscale IP and port" />
+        </Grid>
+
+        <TextBlock Text="Wake Agent"
+                   Classes="label" />
+        <TextBox Text="{Binding WakeAgent}"
+                 PlaceholderText="home" />
+
+        <TextBlock Text="Wake-on-LAN Port"
+                   Classes="label" />
+        <TextBox Text="{Binding WolPort}"
+                 PlaceholderText="9" />
 
         <CheckBox Content="Remote host enabled"
                   IsChecked="{Binding RemoteEnabled}"

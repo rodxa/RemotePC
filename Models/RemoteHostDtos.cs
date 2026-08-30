@@ -16,6 +16,9 @@ public sealed class RemoteHostHealth
     [JsonPropertyName("hostDeviceId")]
     public string HostDeviceId { get; init; } = string.Empty;
 
+    [JsonPropertyName("macAddress")]
+    public string? MacAddress { get; init; }
+
     [JsonPropertyName("uptimeSeconds")]
     public long UptimeSeconds { get; init; }
 }

@@ -2,6 +2,8 @@ namespace RemotePC.Models;
 
 public sealed class PcDeviceCreateRequest
 {
+    public const int DefaultWolPort = 9;
+
     public string DeviceName { get; init; } = string.Empty;
 
     public string? DisplayName { get; init; }
@@ -17,4 +19,10 @@ public sealed class PcDeviceCreateRequest
     public bool RemoteEnabled { get; init; }
 
     public Guid? RemoteDeviceId { get; init; }
+
+    public string? MacAddress { get; init; }
+
+    public string WakeAgent { get; init; } = "home";
+
+    public int WolPort { get; init; } = DefaultWolPort;
 }

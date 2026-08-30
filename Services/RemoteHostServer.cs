@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
@@ -120,6 +121,7 @@ public sealed class RemoteHostServer : IAsyncDisposable
             Version = typeof(App).Assembly.GetName().Version?.ToString() ?? "1.0.0",
             HostEnabled = true,
             HostDeviceId = _credentials.GetOrCreateLocalDeviceId(),
+            MacAddress = GetWakeMacAddress(),
             UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startedAt).TotalSeconds
         });
 
@@ -260,6 +262,56 @@ public sealed class RemoteHostServer : IAsyncDisposable
         var expected = Encoding.UTF8.GetBytes(expectedToken);
         return supplied.Length == expected.Length &&
                CryptographicOperations.FixedTimeEquals(supplied, expected);
+    }
+
+    private static string? GetWakeMacAddress()
+    {
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(IsWakeCandidate)
+            .OrderBy(static adapter => adapter.NetworkInterfaceType is NetworkInterfaceType.Ethernet ? 0 : 1)
+            .ThenBy(static adapter => adapter.NetworkInterfaceType is NetworkInterfaceType.Wireless80211 ? 0 : 1)
+            .Select(static adapter => FormatMacAddress(adapter.GetPhysicalAddress()))
+            .FirstOrDefault(static mac => !string.IsNullOrWhiteSpace(mac));
+    }
+
+    private static bool IsWakeCandidate(NetworkInterface adapter)
+    {
+        if (adapter.OperationalStatus != OperationalStatus.Up)
+        {
+            return false;
+        }
+
+        if (adapter.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+        {
+            return false;
+        }
+
+        var nameAndDescription = string.Concat(adapter.Name, " ", adapter.Description);
+        if (nameAndDescription.Contains("tailscale", StringComparison.OrdinalIgnoreCase) ||
+            nameAndDescription.Contains("virtual", StringComparison.OrdinalIgnoreCase) ||
+            nameAndDescription.Contains("loopback", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (adapter.GetPhysicalAddress().GetAddressBytes().Length != 6)
+        {
+            return false;
+        }
+
+        var properties = adapter.GetIPProperties();
+        return properties.UnicastAddresses.Any(static address =>
+                   address.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) &&
+               properties.GatewayAddresses.Any(static gateway =>
+                   gateway.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+    }
+
+    private static string? FormatMacAddress(PhysicalAddress address)
+    {
+        var bytes = address.GetAddressBytes();
+        return bytes.Length == 6
+            ? string.Join(":", bytes.Select(static value => value.ToString("X2")))
+            : null;
     }
 
     private async Task<PcDevice?> FindLocalPcAsync(CancellationToken cancellationToken)

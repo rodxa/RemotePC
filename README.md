@@ -81,6 +81,39 @@ The main cards are data-driven from `public.pc_remote_control`. A card shows whe
 
 RustDesk integration stores only `rustdesk_id`; authentication stays inside RustDesk. Wake-on-LAN remains Supabase -> ESP32-S3 -> PC and is not replaced by the host listener.
 
+## Multiple-PC Wake-on-LAN
+
+One ESP32 can wake multiple PCs on the same LAN. Each PC row in `public.pc_remote_control` can include:
+
+- `mac_address`: Wake-on-LAN MAC address, preferably `9C:6B:00:7B:DC:44`.
+- `wake_agent`: routing label for the ESP32 that should watch the row, such as `home` or `office`.
+- `wol_port`: UDP Wake-on-LAN port, usually `9`.
+
+The ESP32 firmware has a matching configuration value near the top:
+
+```cpp
+const char* WAKE_AGENT = "home";
+```
+
+At runtime it queries enabled rows with that `wake_agent` and a non-null `mac_address`, then tracks `command_id` independently by PC `id`. Adding another PC with `wake_agent = 'home'` does not require reflashing firmware; the ESP32 discovers it on the next poll, records its current `command_id`, and does not wake it until that command id later increases.
+
+Add/Edit PC can fetch the MAC address from a running RemotePC host over Tailscale, using the same Tailscale IP and Remote Port fields as the Remote Device ID lookup. If the target PC is asleep or host mode is not running, enter the MAC manually.
+
+Example row:
+
+```text
+device_name = main-pc
+mac_address = 9C:6B:00:7B:DC:44
+wake_agent = home
+wol_port = 9
+command_id = 15
+enabled = true
+```
+
+When the app calls `wake_pc(target_id)`, Supabase atomically increments only that row's `command_id`. The matching ESP32 sees the increase and sends a magic packet to that row's MAC address. On ESP32 startup, existing command ids are only synchronized, so booting the ESP32 does not wake every PC. If a row's `command_id` decreases because data was reset or recreated, the ESP32 resynchronizes to the lower value without waking so a future increase works normally.
+
+Multiple physical ESP32s use the same firmware with different `WAKE_AGENT` values. For example, one can use `home` and another can use `office`; each only watches rows assigned to its label. The firmware currently keeps up to `MAX_PCS = 64` tracked PC states and prunes rows that disappear for several successful scans.
+
 ## Custom Actions
 
 Run `Migrations/002_host_mode_and_actions.sql` after the existing migration. It adds host metadata columns and creates `public.pc_commands`.
@@ -135,8 +168,11 @@ Single-file publish is optional; reliability is more important than forcing a on
 
 - Run `Migrations/001_extend_pc_remote_control.sql`.
 - Run `Migrations/002_host_mode_and_actions.sql`.
+- Run `Migrations/003_multi_pc_wake_agents.sql`.
+- Install the ArduinoJson library for the ESP32 firmware if your Arduino environment does not already have it.
 - Keep Tailscale installed and logged in on each PC.
 - Keep RustDesk installed/configured for unattended access and login-screen access.
+- Set `mac_address`, `wake_agent`, and `wol_port` for each PC that should be woken by an ESP32.
 - Enable host mode in RemotePC Settings on machines that should receive commands.
 - Set a Remote Command password on each host, then authorize each controller from the Advanced page.
 - Add owner-based Supabase Auth/RLS before production or shared use of `pc_commands`.

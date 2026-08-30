@@ -30,7 +30,7 @@ public sealed class SupabaseService : IDisposable
 
         using var request = CreateRequest(
             HttpMethod.Get,
-            "/rest/v1/pc_remote_control?select=id,device_name,display_name,command_id,tailscale_ip,rustdesk_id,enabled,last_seen,sort_order,updated_at,remote_port,remote_enabled,remote_device_id,remote_version&order=sort_order.asc,id.asc");
+            "/rest/v1/pc_remote_control?select=id,device_name,display_name,command_id,tailscale_ip,rustdesk_id,enabled,last_seen,sort_order,updated_at,remote_port,remote_enabled,remote_device_id,remote_version,mac_address,wake_agent,wol_port&order=sort_order.asc,id.asc");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -82,7 +82,10 @@ public sealed class SupabaseService : IDisposable
                 p_enabled = pc.Enabled,
                 p_remote_enabled = pc.RemoteEnabled,
                 p_remote_port = pc.RemotePort,
-                p_remote_device_id = pc.RemoteDeviceId
+                p_remote_device_id = pc.RemoteDeviceId,
+                p_mac_address = pc.MacAddress,
+                p_wake_agent = pc.WakeAgent,
+                p_wol_port = pc.WolPort
             },
             JsonOptions);
 
@@ -123,7 +126,10 @@ public sealed class SupabaseService : IDisposable
                 p_enabled = pc.Enabled,
                 p_remote_enabled = pc.RemoteEnabled,
                 p_remote_port = pc.RemotePort,
-                p_remote_device_id = pc.RemoteDeviceId
+                p_remote_device_id = pc.RemoteDeviceId,
+                p_mac_address = pc.MacAddress,
+                p_wake_agent = pc.WakeAgent,
+                p_wol_port = pc.WolPort
             },
             JsonOptions);
 
