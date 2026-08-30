@@ -56,15 +56,16 @@
 
         <Border Classes="section">
           <StackPanel>
-            <TextBlock Text="Pairing"
+            <TextBlock Text="Remote password"
                        FontWeight="SemiBold" />
             <Grid ColumnDefinitions="*,Auto"
                   Margin="0,10,0,0">
-              <TextBox Text="{Binding PairingCode}"
-                       PlaceholderText="Pairing code from host PC" />
+              <TextBox Text="{Binding RemoteControlPassword}"
+                       PasswordChar="*"
+                       PlaceholderText="Password configured on host PC" />
               <Button Grid.Column="1"
-                      Content="Pair"
-                      Command="{Binding PairCommand}"
+                      Content="Authorize"
+                      Command="{Binding AuthorizeCommand}"
                       Margin="8,0,0,0" />
             </Grid>
           </StackPanel>

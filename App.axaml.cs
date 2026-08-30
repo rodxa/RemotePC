@@ -26,7 +26,6 @@ public partial class App : Application
     private RemoteHostServer? _remoteHostServer;
     private WindowsStartupService? _startupService;
     private TailscaleService? _tailscaleService;
-    private PairingService? _pairingService;
     private AppLogger? _logger;
     private TrayIcon? _trayIcon;
     private NativeMenuItem? _hostToggleMenuItem;
@@ -60,11 +59,9 @@ public partial class App : Application
             _startupService = new WindowsStartupService();
             _tailscaleService = new TailscaleService();
             _logger = new AppLogger();
-            _pairingService = new PairingService();
             _remoteHostServer = new RemoteHostServer(
                 _supabaseService,
                 _credentialStore,
-                _pairingService,
                 new ActionExecutor(),
                 _tailscaleService,
                 _logger);
@@ -118,16 +115,6 @@ public partial class App : Application
         }
 
         UpdateTrayStatus();
-    }
-
-    public PairingCodeInfo? CreatePairingCode()
-    {
-        if (_remoteHostServer is not { IsRunning: true })
-        {
-            return null;
-        }
-
-        return _pairingService?.CreatePairingCode(TimeSpan.FromMinutes(5));
     }
 
     private void InitializeTray()

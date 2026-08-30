@@ -19,7 +19,7 @@ public partial class AdvancedWindowViewModel : ObservableObject
     private string? errorMessage;
 
     [ObservableProperty]
-    private string pairingCode = string.Empty;
+    private string remoteControlPassword = string.Empty;
 
     [ObservableProperty]
     private string? resultText;
@@ -84,11 +84,11 @@ public partial class AdvancedWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PairAsync()
+    private async Task AuthorizeAsync()
     {
-        if (string.IsNullOrWhiteSpace(PairingCode))
+        if (string.IsNullOrWhiteSpace(RemoteControlPassword))
         {
-            ErrorMessage = "Enter the pairing code shown on the host PC.";
+            ErrorMessage = "Enter the Remote Control password configured on the host PC.";
             return;
         }
 
@@ -96,8 +96,12 @@ public partial class AdvancedWindowViewModel : ObservableObject
         ErrorMessage = null;
         try
         {
-            var paired = await _remoteHostClient.PairAsync(Device, PairingCode, _applicationCancellationToken);
-            ResultText = paired ? "Pairing succeeded." : "Pairing failed. Check the code and host availability.";
+            var authorized = await _remoteHostClient.AuthorizeAsync(Device, RemoteControlPassword, _applicationCancellationToken);
+            ResultText = authorized ? "Authorization succeeded." : "Authorization failed. Check the password and host availability.";
+            if (authorized)
+            {
+                RemoteControlPassword = string.Empty;
+            }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

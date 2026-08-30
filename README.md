@@ -65,11 +65,13 @@ When `RemoteControlEnabled` is true, RemotePC starts a Kestrel server inside `Re
 
 The host tries to bind to the local Tailscale IPv4. If Tailscale cannot be detected, it binds to loopback only and logs the limitation. Clients use each PC row's `tailscale_ip` and `remote_port`; no public IP or router forwarding is used.
 
-## Pairing And Credentials
+## Password Authorization And Credentials
 
 Each install gets a local device id and a random 256-bit host token. They are stored in `%APPDATA%\RemotePC\credentials.json` encrypted with Windows DPAPI for the current user. Supabase stores only non-secret metadata such as `remote_device_id`, port, and version.
 
-On the host, open Settings -> Remote Control -> Pair Device to create a short-lived code. On the controller, open the target PC's Advanced page and enter the code. The controller exchanges it over Tailscale and stores the returned host token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
+On the host, open Settings -> Remote Control and set a Remote Control password. On the controller, open the target PC's Advanced page and enter that password once. The controller exchanges it over Tailscale for a host token and stores that token with DPAPI. Remote commands include `Authorization: Bearer <token>` and the host validates it before doing anything.
+
+The password itself is not stored in plaintext. The host stores a salted PBKDF2-SHA256 verifier inside the DPAPI-protected credentials file. The password exchange uses plain HTTP over Tailscale, so only use this on your private tailnet; do not expose the host port to the public internet.
 
 ## PCs, Health, Wake, And RustDesk
 
@@ -134,5 +136,5 @@ Single-file publish is optional; reliability is more important than forcing a on
 - Keep Tailscale installed and logged in on each PC.
 - Keep RustDesk installed/configured for unattended access and login-screen access.
 - Enable host mode in RemotePC Settings on machines that should receive commands.
-- Pair each controller with each host from the Advanced page.
+- Set a Remote Control password on each host, then authorize each controller from the Advanced page.
 - Add owner-based Supabase Auth/RLS before production use of `pc_commands`, or consciously apply the commented development policy only for personal testing.

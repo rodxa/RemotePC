@@ -53,29 +53,20 @@ public sealed class ActionExecutionResult
     }
 }
 
-public sealed class PairingCodeInfo
-{
-    public string Code { get; init; } = string.Empty;
-
-    public DateTimeOffset ExpiresAt { get; init; }
-
-    public string ExpiresAtText => ExpiresAt.LocalDateTime.ToString("g");
-}
-
-public sealed class PairingRequest
-{
-    [JsonPropertyName("code")]
-    public string Code { get; init; } = string.Empty;
-
-    [JsonPropertyName("clientDeviceId")]
-    public string ClientDeviceId { get; init; } = string.Empty;
-}
-
-public sealed class PairingResponse
+public sealed class RemotePasswordResponse
 {
     [JsonPropertyName("hostDeviceId")]
     public string HostDeviceId { get; init; } = string.Empty;
 
     [JsonPropertyName("token")]
     public string Token { get; init; } = string.Empty;
+}
+
+public sealed class RemotePasswordRequest
+{
+    [JsonPropertyName("password")]
+    public string Password { get; init; } = string.Empty;
+
+    [JsonPropertyName("clientDeviceId")]
+    public string ClientDeviceId { get; init; } = string.Empty;
 }

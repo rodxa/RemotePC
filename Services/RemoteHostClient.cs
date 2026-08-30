@@ -68,20 +68,20 @@ public sealed class RemoteHostClient
         return PostCommandAsync(device, $"/api/actions/{actionId}", new RemoteActionRequest { Confirmed = confirmed }, cancellationToken);
     }
 
-    public async Task<bool> PairAsync(PcDevice device, string pairingCode, CancellationToken cancellationToken)
+    public async Task<bool> AuthorizeAsync(PcDevice device, string password, CancellationToken cancellationToken)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(CommandTimeout);
 
         var payload = JsonSerializer.Serialize(
-            new PairingRequest
+            new RemotePasswordRequest
             {
-                Code = pairingCode,
+                Password = password,
                 ClientDeviceId = _credentials.GetOrCreateLocalDeviceId()
             },
             JsonOptions);
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync(CreateUri(device, "/api/pairing/complete"), content, timeoutCts.Token);
+        using var response = await _httpClient.PostAsync(CreateUri(device, "/api/auth/token"), content, timeoutCts.Token);
         var body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
 
         if (!response.IsSuccessStatusCode)
@@ -89,13 +89,13 @@ public sealed class RemoteHostClient
             return false;
         }
 
-        var pairing = JsonSerializer.Deserialize<PairingResponse>(body, JsonOptions);
-        if (string.IsNullOrWhiteSpace(pairing?.Token))
+        var authorization = JsonSerializer.Deserialize<RemotePasswordResponse>(body, JsonOptions);
+        if (string.IsNullOrWhiteSpace(authorization?.Token))
         {
             return false;
         }
 
-        _credentials.SaveHostTokenForPc(device.Id, pairing.Token);
+        _credentials.SaveHostTokenForPc(device.Id, authorization.Token);
         return true;
     }
 
@@ -108,7 +108,7 @@ public sealed class RemoteHostClient
         var token = _credentials.GetHostTokenForPc(device.Id);
         if (string.IsNullOrWhiteSpace(token))
         {
-            return ActionExecutionResult.Failed("This PC is not paired. Open Advanced and pair it first.");
+            return ActionExecutionResult.Failed("This PC is not authorized. Open Advanced and enter its Remote Control password first.");
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -125,7 +125,7 @@ public sealed class RemoteHostClient
             var body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
-                return ActionExecutionResult.Failed("The host rejected this pairing token.");
+                return ActionExecutionResult.Failed("The host rejected this authorization token.");
             }
 
             if (!response.IsSuccessStatusCode)

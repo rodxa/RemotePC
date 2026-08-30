@@ -6,6 +6,9 @@ namespace RemotePC.Services;
 
 public sealed class ProtectedCredentialStore
 {
+    private const int PasswordHashIterations = 210_000;
+    private const int PasswordHashBytes = 32;
+    private const int PasswordSaltBytes = 16;
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("RemotePC.v1");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _path;
@@ -59,6 +62,56 @@ public sealed class ProtectedCredentialStore
         Save(credentials);
     }
 
+    public bool HasHostPassword()
+    {
+        var credentials = Load();
+        return !string.IsNullOrWhiteSpace(credentials.HostPasswordSalt) &&
+               !string.IsNullOrWhiteSpace(credentials.HostPasswordHash);
+    }
+
+    public void SetHostPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new ArgumentException("Remote control password cannot be empty.", nameof(password));
+        }
+
+        var credentials = Load();
+        var salt = RandomNumberGenerator.GetBytes(PasswordSaltBytes);
+        var hash = HashPassword(password, salt);
+        credentials.HostPasswordSalt = Convert.ToBase64String(salt);
+        credentials.HostPasswordHash = Convert.ToBase64String(hash);
+        Save(credentials);
+    }
+
+    public bool VerifyHostPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return false;
+        }
+
+        var credentials = Load();
+        if (string.IsNullOrWhiteSpace(credentials.HostPasswordSalt) ||
+            string.IsNullOrWhiteSpace(credentials.HostPasswordHash))
+        {
+            return false;
+        }
+
+        try
+        {
+            var salt = Convert.FromBase64String(credentials.HostPasswordSalt);
+            var expected = Convert.FromBase64String(credentials.HostPasswordHash);
+            var supplied = HashPassword(password, salt);
+            return supplied.Length == expected.Length &&
+                   CryptographicOperations.FixedTimeEquals(supplied, expected);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private Credentials Load()
     {
         if (!File.Exists(_path))
@@ -89,11 +142,25 @@ public sealed class ProtectedCredentialStore
         File.WriteAllText(_path, Convert.ToBase64String(protectedBytes));
     }
 
+    private static byte[] HashPassword(string password, byte[] salt)
+    {
+        return Rfc2898DeriveBytes.Pbkdf2(
+            password,
+            salt,
+            PasswordHashIterations,
+            HashAlgorithmName.SHA256,
+            PasswordHashBytes);
+    }
+
     private sealed class Credentials
     {
         public string? LocalDeviceId { get; set; }
 
         public string? HostToken { get; set; }
+
+        public string? HostPasswordSalt { get; set; }
+
+        public string? HostPasswordHash { get; set; }
 
         public Dictionary<string, string> PairedHosts { get; set; } = new();
     }

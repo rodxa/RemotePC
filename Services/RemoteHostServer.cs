@@ -17,7 +17,6 @@ public sealed class RemoteHostServer : IAsyncDisposable
 {
     private readonly SupabaseService _supabase;
     private readonly ProtectedCredentialStore _credentials;
-    private readonly PairingService _pairing;
     private readonly ActionExecutor _executor;
     private readonly ActionSafetyService _safety;
     private readonly TailscaleService _tailscale;
@@ -29,14 +28,12 @@ public sealed class RemoteHostServer : IAsyncDisposable
     public RemoteHostServer(
         SupabaseService supabase,
         ProtectedCredentialStore credentials,
-        PairingService pairing,
         ActionExecutor executor,
         TailscaleService tailscale,
         AppLogger logger)
     {
         _supabase = supabase;
         _credentials = credentials;
-        _pairing = pairing;
         _executor = executor;
         _safety = new ActionSafetyService();
         _tailscale = tailscale;
@@ -125,16 +122,16 @@ public sealed class RemoteHostServer : IAsyncDisposable
             UptimeSeconds = (long)(DateTimeOffset.UtcNow - _startedAt).TotalSeconds
         });
 
-        routes.MapPost("/api/pairing/complete", (PairingRequest request) =>
+        routes.MapPost("/api/auth/token", (RemotePasswordRequest request) =>
         {
-            if (!_pairing.TryConsume(request.Code))
+            if (!_credentials.VerifyHostPassword(request.Password))
             {
-                _logger.Warn("Pairing rejected");
+                _logger.Warn("Password authorization rejected");
                 return Results.Unauthorized();
             }
 
-            _logger.Info("Pairing succeeded");
-            return Results.Ok(new PairingResponse
+            _logger.Info("Password authorization succeeded");
+            return Results.Ok(new RemotePasswordResponse
             {
                 HostDeviceId = _credentials.GetOrCreateLocalDeviceId(),
                 Token = _credentials.GetOrCreateHostToken()

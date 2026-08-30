@@ -41,11 +41,16 @@ public partial class SettingsWindowViewModel : ObservableObject
     [ObservableProperty]
     private string remotePort = LocalAppOptions.DefaultRemotePort.ToString();
 
-    [ObservableProperty]
-    private string? pairingCode;
+    private readonly ProtectedCredentialStore _credentials = new();
 
     [ObservableProperty]
-    private string? pairingStatus;
+    private string remoteControlPassword = string.Empty;
+
+    [ObservableProperty]
+    private string confirmRemoteControlPassword = string.Empty;
+
+    [ObservableProperty]
+    private string passwordStatus = string.Empty;
 
     public SettingsWindowViewModel()
     {
@@ -59,6 +64,9 @@ public partial class SettingsWindowViewModel : ObservableObject
         NotificationsEnabled = settings.Local.NotificationsEnabled;
         MachineName = settings.Local.MachineName;
         RemotePort = settings.Local.RemotePort.ToString();
+        PasswordStatus = _credentials.HasHostPassword()
+            ? "Password is configured. Leave the fields empty to keep it."
+            : "No Remote Control password is configured.";
     }
 
     public event EventHandler<bool>? CloseRequested;
@@ -67,8 +75,6 @@ public partial class SettingsWindowViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
-    public bool HasPairingCode => !string.IsNullOrWhiteSpace(PairingCode);
-
     public string TailscaleStatus => new TailscaleService().GetLocalTailscaleIp() is { } ip
         ? ip
         : "Not detected";
@@ -76,11 +82,6 @@ public partial class SettingsWindowViewModel : ObservableObject
     partial void OnErrorMessageChanged(string? value)
     {
         OnPropertyChanged(nameof(HasError));
-    }
-
-    partial void OnPairingCodeChanged(string? value)
-    {
-        OnPropertyChanged(nameof(HasPairingCode));
     }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
@@ -104,6 +105,22 @@ public partial class SettingsWindowViewModel : ObservableObject
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(RemoteControlPassword) ||
+            !string.IsNullOrWhiteSpace(ConfirmRemoteControlPassword))
+        {
+            if (RemoteControlPassword.Length < 8)
+            {
+                ErrorMessage = "Remote Control password must be at least 8 characters.";
+                return;
+            }
+
+            if (!string.Equals(RemoteControlPassword, ConfirmRemoteControlPassword, StringComparison.Ordinal))
+            {
+                ErrorMessage = "Remote Control passwords do not match.";
+                return;
+            }
+        }
+
         try
         {
             AppConfiguration.SaveAll(new AppConfiguration.AppSettings
@@ -120,6 +137,11 @@ public partial class SettingsWindowViewModel : ObservableObject
                     RemotePort = remotePort
                 }
             });
+            if (!string.IsNullOrWhiteSpace(RemoteControlPassword))
+            {
+                _credentials.SetHostPassword(RemoteControlPassword);
+            }
+
             ErrorMessage = null;
             CloseRequested?.Invoke(this, true);
         }
@@ -127,22 +149,6 @@ public partial class SettingsWindowViewModel : ObservableObject
         {
             ErrorMessage = $"Could not save settings: {ex.Message}";
         }
-    }
-
-    [RelayCommand]
-    private void CreatePairingCode()
-    {
-        var app = Application.Current as App;
-        var code = app?.CreatePairingCode();
-        if (code is null)
-        {
-            PairingCode = null;
-            PairingStatus = "Enable host mode, save settings, then create a pairing code.";
-            return;
-        }
-
-        PairingCode = code.Code;
-        PairingStatus = $"Expires {code.ExpiresAtText}";
     }
 
     [RelayCommand]

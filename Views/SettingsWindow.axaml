@@ -81,20 +81,19 @@
                   CornerRadius="8"
                   Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
             <StackPanel>
-              <TextBlock Text="Pairing"
+              <TextBlock Text="Remote password"
                          FontWeight="SemiBold" />
-              <Button Content="Pair Device"
-                      Command="{Binding CreatePairingCodeCommand}"
-                      HorizontalAlignment="Left"
-                      Margin="0,10,0,0" />
-              <TextBlock Text="{Binding PairingCode}"
-                         FontSize="28"
-                         FontWeight="SemiBold"
-                         Margin="0,10,0,0"
-                         IsVisible="{Binding HasPairingCode}" />
-              <TextBlock Text="{Binding PairingStatus}"
+              <TextBlock Text="{Binding PasswordStatus}"
                          Classes="subtle"
-                         Margin="0,4,0,0" />
+                         Margin="0,6,0,0" />
+              <TextBox Text="{Binding RemoteControlPassword}"
+                       PasswordChar="*"
+                       PlaceholderText="New Remote Control password"
+                       Margin="0,10,0,0" />
+              <TextBox Text="{Binding ConfirmRemoteControlPassword}"
+                       PasswordChar="*"
+                       PlaceholderText="Confirm password"
+                       Margin="0,8,0,0" />
             </StackPanel>
           </Border>
         </StackPanel>
