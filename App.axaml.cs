@@ -119,7 +119,7 @@ public partial class App : Application
 
     private void InitializeTray()
     {
-        using var iconStream = CreateTrayIconStream();
+        using var iconStream = OpenTrayIconStream();
         _trayIcon = new TrayIcon
         {
             ToolTipText = "RemotePC",
@@ -147,72 +147,9 @@ public partial class App : Application
         _logger?.Info("Tray initialized");
     }
 
-    private static MemoryStream CreateTrayIconStream()
+    private static Stream OpenTrayIconStream()
     {
-        const int width = 16;
-        const int height = 16;
-        const int bitmapHeaderSize = 40;
-        const int pixelBytes = width * height * 4;
-        const int maskBytes = 4 * height;
-        const int imageBytes = bitmapHeaderSize + pixelBytes + maskBytes;
-        const int imageOffset = 22;
-
-        var stream = new MemoryStream();
-        WriteUInt16(stream, 0);
-        WriteUInt16(stream, 1);
-        WriteUInt16(stream, 1);
-
-        stream.WriteByte(width);
-        stream.WriteByte(height);
-        stream.WriteByte(0);
-        stream.WriteByte(0);
-        WriteUInt16(stream, 1);
-        WriteUInt16(stream, 32);
-        WriteUInt32(stream, imageBytes);
-        WriteUInt32(stream, imageOffset);
-
-        WriteUInt32(stream, bitmapHeaderSize);
-        WriteInt32(stream, width);
-        WriteInt32(stream, height * 2);
-        WriteUInt16(stream, 1);
-        WriteUInt16(stream, 32);
-        WriteUInt32(stream, 0);
-        WriteUInt32(stream, pixelBytes);
-        WriteInt32(stream, 0);
-        WriteInt32(stream, 0);
-        WriteUInt32(stream, 0);
-        WriteUInt32(stream, 0);
-
-        for (var y = height - 1; y >= 0; y--)
-        {
-            for (var x = 0; x < width; x++)
-            {
-                var edge = x is 0 or width - 1 || y is 0 or height - 1;
-                stream.WriteByte(edge ? (byte)0x4C : (byte)0x91);
-                stream.WriteByte(edge ? (byte)0x7A : (byte)0xC7);
-                stream.WriteByte(edge ? (byte)0x1E : (byte)0x2F);
-                stream.WriteByte(0xFF);
-            }
-        }
-
-        stream.Write(new byte[maskBytes]);
-        stream.Position = 0;
-        return stream;
-    }
-
-    private static void WriteUInt16(Stream stream, ushort value)
-    {
-        stream.Write(BitConverter.GetBytes(value));
-    }
-
-    private static void WriteUInt32(Stream stream, int value)
-    {
-        stream.Write(BitConverter.GetBytes((uint)value));
-    }
-
-    private static void WriteInt32(Stream stream, int value)
-    {
-        stream.Write(BitConverter.GetBytes(value));
+        return AssetLoader.Open(new Uri("avares://RemotePC/Assets/RPC.ico"));
     }
 
     private async Task ToggleHostAsync()

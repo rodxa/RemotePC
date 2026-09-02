@@ -8,6 +8,7 @@
         Height="620"
         MinWidth="360"
         MinHeight="460"
+        Icon="/Assets/RPC.ico"
         WindowStartupLocation="CenterScreen">
   <Window.Styles>
     <Style Selector="Border.device-card">
