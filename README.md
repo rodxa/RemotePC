@@ -1,3 +1,5 @@
+![RemotePC Banner](https://github.com/user-attachments/assets/22b22df7-c008-4b82-a4b9-0bab95ccab5e)
+
 # RemotePC
 
 RemotePC is one Avalonia desktop app that can be a controller, a tray host, or both. Wake still goes through Supabase and the ESP32-S3. Remote desktop still opens RustDesk. Host commands travel directly to another running RemotePC instance over Tailscale.
