@@ -177,15 +177,61 @@ By default the installed app checks `https://github.com/rodxa/RemotePC`. Overrid
 
 Publishing uses the GitHub CLI from your machine when it is installed. Without `gh`, set `GITHUB_TOKEN` for the publish script only; the script will create/reuse the GitHub Release through the GitHub REST API and upload the Velopack files. The token needs repository contents/release write access.
 
-## Manual Setup Still Required
+## Setup Checklist
 
-- Run `Migrations/001_extend_pc_remote_control.sql`.
-- Run `Migrations/002_host_mode_and_actions.sql`.
-- Run `Migrations/003_multi_pc_wake_agents.sql`.
-- Install the ArduinoJson library for the ESP32 firmware if your Arduino environment does not already have it.
-- Keep Tailscale installed and logged in on each PC.
-- Keep RustDesk installed/configured for unattended access and login-screen access.
-- Set `mac_address`, `wake_agent`, and `wol_port` for each PC that should be woken by an ESP32.
-- Enable host mode in RemotePC Settings on machines that should receive commands.
-- Set a Remote Command password on each host, then authorize each controller from the Advanced page.
-- Add owner-based Supabase Auth/RLS before production or shared use of `pc_commands`.
+RemotePC automates the flow around wake, status checks, remote commands, and opening RustDesk, but it does not configure Supabase, Tailscale, RustDesk, Windows Wake-on-LAN, or the ESP32 firmware for you.
+
+1. Create or open a Supabase project.
+2. Run the migrations in order:
+
+```text
+Migrations/001_extend_pc_remote_control.sql
+Migrations/002_host_mode_and_actions.sql
+Migrations/003_multi_pc_wake_agents.sql
+```
+
+3. Copy your Supabase project URL and publishable key into `appsettings.json`. Use only the publishable key; never use a `service_role` key in the app.
+4. Build, publish, or install RemotePC on the controller PC and on any remote PC that should appear as a host.
+5. Install Tailscale on the controller PC and every remote PC, then log them into the same tailnet.
+6. Install RustDesk on the controller PC and every remote PC.
+7. In RustDesk on each remote PC, enable unattended access and set its RustDesk password. RemotePC stores only the RustDesk ID, not this password.
+8. In RustDesk on each remote PC, enable or verify login-screen/service access if you want to connect after wake or reboot before a Windows user logs in.
+9. Make sure each remote PC supports Wake-on-LAN:
+
+- Enable Wake-on-LAN in BIOS/UEFI if required.
+- Enable Wake-on-LAN or magic packet wake in the network adapter settings.
+- Use wired Ethernet when possible; Wi-Fi Wake-on-LAN depends on hardware and driver support.
+
+10. Prepare the ESP32 wake agent:
+
+- Install the Arduino ESP32 board support in your Arduino environment.
+- Install ArduinoJson if it is not already available.
+- Open `esp32/esp32.cpp`.
+- Set `WIFI_SSID`, `WIFI_PASSWORD`, `SUPABASE_URL`, and `SUPABASE_KEY`.
+- Set `WAKE_AGENT`, for example `home`.
+- Set `WOL_BROADCAST` to the LAN broadcast address for the remote PCs, for example `192.168.1.255`.
+- Flash the firmware to a Wi-Fi capable ESP32 board on the same LAN as the PCs it should wake.
+
+11. Add each PC in RemotePC or Supabase with:
+
+- `device_name` or display name.
+- `rustdesk_id`: the remote PC's RustDesk ID only, with no password.
+- `tailscale_ip`: the remote PC's Tailscale IPv4 address.
+- `remote_port`: usually `47632`.
+- `mac_address`: the remote PC's Wake-on-LAN MAC address.
+- `wake_agent`: the label used by the ESP32 firmware, such as `home`.
+- `wol_port`: usually `9`.
+- `enabled`: `true`.
+
+12. On each remote PC that should receive shutdown, restart, lock, or custom actions, open RemotePC Settings -> Remote Control and enable host mode.
+13. On each host, set a Remote Command password. This is separate from the RustDesk password.
+14. On each host, enable Start With Windows and Start Minimized if you want RemotePC host commands available automatically after Windows login.
+15. On the controller PC, open the Advanced page and authorize each host before running remote commands.
+16. If Windows Firewall blocks host commands, run the firewall script once as Administrator:
+
+```powershell
+.\setup\Configure-RemotePCFirewall.ps1 -Port 47632
+```
+
+17. Press `Connect`. RemotePC will check status, wake the PC through Supabase and the ESP32 if needed, wait for reachability, then open RustDesk.
+18. Add owner-based Supabase Auth/RLS before production or shared use of `pc_commands`.
