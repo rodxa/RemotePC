@@ -1,4 +1,4 @@
-![RemotePC Banner](https://github.com/user-attachments/assets/22b22df7-c008-4b82-a4b9-0bab95ccab5e)
+<img width="2000" height="611" alt="rpc" src="https://github.com/user-attachments/assets/2c641f11-63c1-43e1-81e6-d377f4a17c51" />
 
 # RemotePC
 
