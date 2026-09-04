@@ -2,13 +2,13 @@
 
 # RemotePC
 
-RemotePC is one Avalonia desktop app that can be a controller, a tray host, or both. Wake still goes through Supabase and the ESP32-S3. Remote desktop still opens RustDesk. Host commands travel directly to another running RemotePC instance over Tailscale.
+RemotePC is one Avalonia desktop app that can be a controller, a tray host, or both. Wake still goes through Supabase and an ESP32 wake agent. Remote desktop still opens RustDesk. Host commands travel directly to another running RemotePC instance over Tailscale.
 
 ## Architecture
 
 ```text
 Controller RemotePC
-  |-- Supabase -> ESP32-S3 -> Wake-on-LAN
+  |-- Supabase -> ESP32 wake agent -> Wake-on-LAN
   |-- RustDesk -> remote desktop
   `-- Tailscale HTTP -> Host RemotePC -> built-in/custom actions
 ```
@@ -81,11 +81,11 @@ The password itself is not stored in plaintext. The host stores a salted PBKDF2-
 
 The main cards are data-driven from `public.pc_remote_control`. A card shows whether the PC is offline, reachable, or whether the RemotePC tray host is ready. `Connect` still works without host mode: it checks Tailscale/RustDesk status, calls Supabase `wake_pc` if needed, waits for reachability, and opens RustDesk.
 
-RustDesk integration stores only `rustdesk_id`; authentication stays inside RustDesk. Wake-on-LAN remains Supabase -> ESP32-S3 -> PC and is not replaced by the host listener.
+RustDesk integration stores only `rustdesk_id`; authentication stays inside RustDesk. Wake-on-LAN remains Supabase -> ESP32 wake agent -> PC and is not replaced by the host listener.
 
 ## Multiple-PC Wake-on-LAN
 
-One ESP32 can wake multiple PCs on the same LAN. Each PC row in `public.pc_remote_control` can include:
+One Wi-Fi capable ESP32 board can wake multiple PCs on the same LAN. The firmware is not ESP32-S3-specific; any ESP32 board supported by the Arduino ESP32 core should work. Each PC row in `public.pc_remote_control` can include:
 
 - `mac_address`: Wake-on-LAN MAC address, preferably `9C:6B:00:7B:DC:44`.
 - `wake_agent`: routing label for the ESP32 that should watch the row, such as `home` or `office`.
