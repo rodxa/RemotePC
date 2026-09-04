@@ -7,7 +7,7 @@
         MinWidth="380"
         MinHeight="180"
         CanResize="False"
-        Icon="/Assets/RPC.ico"
+        Icon="/Assets/AppIcon.ico"
         WindowStartupLocation="CenterOwner">
   <Grid RowDefinitions="*,Auto" Margin="18">
     <StackPanel>

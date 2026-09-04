@@ -29,6 +29,15 @@ public sealed class RemoteActionRequest
     public bool Confirmed { get; init; }
 }
 
+public sealed class RemoteControllerSessionRequest
+{
+    [JsonPropertyName("clientDeviceId")]
+    public string ClientDeviceId { get; init; } = string.Empty;
+
+    [JsonPropertyName("clientRustDeskId")]
+    public string? ClientRustDeskId { get; init; }
+}
+
 public sealed class ActionExecutionResult
 {
     [JsonPropertyName("success")]

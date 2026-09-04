@@ -18,6 +18,7 @@ public sealed class RemoteHostServer : IAsyncDisposable
 {
     private readonly SupabaseService _supabase;
     private readonly ProtectedCredentialStore _credentials;
+    private readonly RemoteSessionState _remoteSessionState;
     private readonly ActionExecutor _executor;
     private readonly ActionSafetyService _safety;
     private readonly TailscaleService _tailscale;
@@ -29,12 +30,14 @@ public sealed class RemoteHostServer : IAsyncDisposable
     public RemoteHostServer(
         SupabaseService supabase,
         ProtectedCredentialStore credentials,
+        RemoteSessionState remoteSessionState,
         ActionExecutor executor,
         TailscaleService tailscale,
         AppLogger logger)
     {
         _supabase = supabase;
         _credentials = credentials;
+        _remoteSessionState = remoteSessionState;
         _executor = executor;
         _safety = new ActionSafetyService();
         _tailscale = tailscale;
@@ -145,6 +148,13 @@ public sealed class RemoteHostServer : IAsyncDisposable
                 HostDeviceId = _credentials.GetOrCreateLocalDeviceId(),
                 Token = _credentials.GetOrCreateHostToken()
             });
+        });
+
+        routes.MapPost("/api/session/controller", (RemoteControllerSessionRequest request) =>
+        {
+            _remoteSessionState.MarkController(request);
+            _logger.Info("Controller session marker updated");
+            return Results.Ok();
         });
 
         routes.MapPost("/api/builtin/shutdown", async (HttpContext context, RemoteActionRequest request, CancellationToken cancellationToken) =>

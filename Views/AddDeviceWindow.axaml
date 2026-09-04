@@ -9,7 +9,7 @@
         MinWidth="420"
         MinHeight="560"
         CanResize="False"
-        Icon="/Assets/RPC.ico"
+        Icon="/Assets/AppIcon.ico"
         WindowStartupLocation="CenterOwner">
   <Window.Styles>
     <Style Selector="TextBlock.label">

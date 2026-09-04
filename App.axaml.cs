@@ -22,10 +22,12 @@ public partial class App : Application
     private PcStatusService? _statusService;
     private RustDeskService? _rustDeskService;
     private ProtectedCredentialStore? _credentialStore;
+    private RemoteSessionState? _remoteSessionState;
     private RemoteHostClient? _remoteHostClient;
     private RemoteHostServer? _remoteHostServer;
     private WindowsStartupService? _startupService;
     private TailscaleService? _tailscaleService;
+    private UpdateService? _updateService;
     private AppLogger? _logger;
     private TrayIcon? _trayIcon;
     private NativeMenuItem? _hostToggleMenuItem;
@@ -34,6 +36,7 @@ public partial class App : Application
     private MainWindowViewModel? _mainViewModel;
     private IClassicDesktopStyleApplicationLifetime? _desktop;
     private bool _isExplicitExit;
+    private bool _openRequestedBeforeStartup;
 
     public static SingleInstanceCoordinator? SingleInstance { get; set; }
 
@@ -48,6 +51,38 @@ public partial class App : Application
         {
             _desktop = desktop;
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            _logger = new AppLogger();
+            _updateService = new UpdateService(_logger);
+            SingleInstance!.OpenRequested += OnSingleInstanceOpenRequested;
+            _ = StartAfterUpdateCheckAsync(desktop);
+
+            desktop.Exit += (_, _) =>
+            {
+                _shutdown.Cancel();
+                _shutdown.Dispose();
+                _trayIcon?.Dispose();
+                _supabaseService?.Dispose();
+                _httpClient?.Dispose();
+                _remoteHttpClient?.Dispose();
+            };
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private async Task StartAfterUpdateCheckAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        try
+        {
+            var updateResult = _updateService is null
+                ? UpdateCheckResult.Unavailable("Updates unavailable.")
+                : await _updateService.CheckDownloadApplyAndRestartAsync(desktop.Args, _shutdown.Token);
+
+            if (updateResult.Status == UpdateCheckStatus.RestartRequested)
+            {
+                return;
+            }
+
             var settings = AppConfiguration.LoadAll();
             _httpClient = new HttpClient();
             _remoteHttpClient = new HttpClient();
@@ -55,53 +90,50 @@ public partial class App : Application
             _statusService = new PcStatusService();
             _rustDeskService = new RustDeskService();
             _credentialStore = new ProtectedCredentialStore();
+            _remoteSessionState = new RemoteSessionState();
             _remoteHostClient = new RemoteHostClient(_remoteHttpClient, _credentialStore);
             _startupService = new WindowsStartupService();
             _tailscaleService = new TailscaleService();
-            _logger = new AppLogger();
             _remoteHostServer = new RemoteHostServer(
                 _supabaseService,
                 _credentialStore,
+                _remoteSessionState,
                 new ActionExecutor(),
                 _tailscaleService,
-                _logger);
+                _logger!);
 
             _mainViewModel = new MainWindowViewModel(
                 _supabaseService,
                 _statusService,
                 _rustDeskService,
                 _remoteHostClient,
+                _remoteSessionState,
                 _shutdown.Token);
 
             InitializeTray();
-            SingleInstance!.OpenRequested += OnSingleInstanceOpenRequested;
 
-            _ = _remoteHostServer.ApplySettingsAsync(settings.Local, _shutdown.Token);
-            _logger.Info("RemotePC started");
+            await _remoteHostServer.ApplySettingsAsync(settings.Local, _shutdown.Token);
+            _logger?.Info("RemotePC started");
 
             _mainWindow = new MainWindow
             {
                 DataContext = _mainViewModel
             };
             _mainWindow.Closing += OnMainWindowClosing;
-            if (!ShouldStartHidden(desktop.Args, settings.Local))
+            if (_openRequestedBeforeStartup || !ShouldStartHidden(desktop.Args, settings.Local))
             {
                 desktop.MainWindow = _mainWindow;
                 ShowMainWindow();
             }
-
-            desktop.Exit += (_, _) =>
-            {
-                _shutdown.Cancel();
-                _shutdown.Dispose();
-                _trayIcon?.Dispose();
-                _supabaseService.Dispose();
-                _httpClient.Dispose();
-                _remoteHttpClient.Dispose();
-            };
         }
-
-        base.OnFrameworkInitializationCompleted();
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger?.Error("RemotePC startup failed", ex);
+            desktop.Shutdown(1);
+        }
     }
 
     public async Task ReloadRuntimeSettingsAsync()
@@ -149,7 +181,7 @@ public partial class App : Application
 
     private static Stream OpenTrayIconStream()
     {
-        return AssetLoader.Open(new Uri("avares://RemotePC/Assets/RPC.ico"));
+        return AssetLoader.Open(new Uri("avares://RemotePC/Assets/AppIcon.ico"));
     }
 
     private async Task ToggleHostAsync()
@@ -167,7 +199,10 @@ public partial class App : Application
                 RemoteControlEnabled = !local.RemoteControlEnabled,
                 NotificationsEnabled = local.NotificationsEnabled,
                 MachineName = local.MachineName,
-                RemotePort = local.RemotePort
+                RemotePort = local.RemotePort,
+                LastUpdateCheckedUtc = local.LastUpdateCheckedUtc,
+                LastUpdateInstalledUtc = local.LastUpdateInstalledUtc,
+                LastUpdateStatus = local.LastUpdateStatus
             }
         });
         await ReloadRuntimeSettingsAsync();
@@ -235,6 +270,12 @@ public partial class App : Application
 
     private void OnSingleInstanceOpenRequested(object? sender, EventArgs e)
     {
+        if (_mainViewModel is null)
+        {
+            _openRequestedBeforeStartup = true;
+            return;
+        }
+
         ShowMainWindow();
     }
 

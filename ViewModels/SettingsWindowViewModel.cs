@@ -9,6 +9,9 @@ namespace RemotePC.ViewModels;
 
 public partial class SettingsWindowViewModel : ObservableObject
 {
+    private readonly UpdateService _updateService;
+    private readonly ProtectedCredentialStore _credentials = new();
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     private string supabaseUrl = string.Empty;
@@ -41,7 +44,18 @@ public partial class SettingsWindowViewModel : ObservableObject
     [ObservableProperty]
     private string remotePort = LocalAppOptions.DefaultRemotePort.ToString();
 
-    private readonly ProtectedCredentialStore _credentials = new();
+    [ObservableProperty]
+    private string updateStatus = string.Empty;
+
+    [ObservableProperty]
+    private string lastUpdateCheckedDisplay = string.Empty;
+
+    [ObservableProperty]
+    private string lastUpdateInstalledDisplay = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckUpdatesCommand))]
+    private bool isCheckingUpdates;
 
     [ObservableProperty]
     private string remoteControlPassword = string.Empty;
@@ -53,17 +67,14 @@ public partial class SettingsWindowViewModel : ObservableObject
     private string passwordStatus = string.Empty;
 
     public SettingsWindowViewModel()
+        : this(new UpdateService(new AppLogger()))
     {
-        var settings = AppConfiguration.LoadAll();
-        SupabaseUrl = settings.Supabase.IsConfigured ? settings.Supabase.Url : string.Empty;
-        PublishableKey = settings.Supabase.IsConfigured ? settings.Supabase.PublishableKey : string.Empty;
-        StartWithWindows = settings.Local.StartWithWindows;
-        StartMinimized = settings.Local.StartMinimized;
-        CloseToTray = settings.Local.CloseToTray;
-        RemoteControlEnabled = settings.Local.RemoteControlEnabled;
-        NotificationsEnabled = settings.Local.NotificationsEnabled;
-        MachineName = settings.Local.MachineName;
-        RemotePort = settings.Local.RemotePort.ToString();
+    }
+
+    public SettingsWindowViewModel(UpdateService updateService)
+    {
+        _updateService = updateService;
+        LoadSettings();
         PasswordStatus = _credentials.HasHostPassword()
             ? "Remote Command password is configured. Leave the fields empty to keep it."
             : "No Remote Command password is configured.";
@@ -125,6 +136,7 @@ public partial class SettingsWindowViewModel : ObservableObject
 
         try
         {
+            var currentLocal = AppConfiguration.LoadAll().Local.Normalized();
             AppConfiguration.SaveAll(new AppConfiguration.AppSettings
             {
                 Supabase = options,
@@ -136,7 +148,10 @@ public partial class SettingsWindowViewModel : ObservableObject
                     RemoteControlEnabled = RemoteControlEnabled,
                     NotificationsEnabled = NotificationsEnabled,
                     MachineName = MachineName,
-                    RemotePort = remotePort
+                    RemotePort = remotePort,
+                    LastUpdateCheckedUtc = currentLocal.LastUpdateCheckedUtc,
+                    LastUpdateInstalledUtc = currentLocal.LastUpdateInstalledUtc,
+                    LastUpdateStatus = currentLocal.LastUpdateStatus
                 }
             });
             if (!string.IsNullOrWhiteSpace(RemoteControlPassword))
@@ -159,9 +174,71 @@ public partial class SettingsWindowViewModel : ObservableObject
         CloseRequested?.Invoke(this, false);
     }
 
+    [RelayCommand(CanExecute = nameof(CanCheckUpdates))]
+    private async Task CheckUpdatesAsync()
+    {
+        IsCheckingUpdates = true;
+        ErrorMessage = null;
+        UpdateStatus = "Checking GitHub Releases for updates...";
+
+        try
+        {
+            var result = await _updateService.CheckDownloadApplyAndRestartAsync(null, CancellationToken.None);
+            LoadUpdateStatus();
+
+            if (result.Status == UpdateCheckStatus.InProgress)
+            {
+                UpdateStatus = result.Message;
+            }
+        }
+        finally
+        {
+            IsCheckingUpdates = false;
+        }
+    }
+
     private bool CanSave()
     {
         return !string.IsNullOrWhiteSpace(SupabaseUrl) &&
                !string.IsNullOrWhiteSpace(PublishableKey);
+    }
+
+    private bool CanCheckUpdates()
+    {
+        return !IsCheckingUpdates;
+    }
+
+    private void LoadSettings()
+    {
+        var settings = AppConfiguration.LoadAll();
+        SupabaseUrl = settings.Supabase.IsConfigured ? settings.Supabase.Url : string.Empty;
+        PublishableKey = settings.Supabase.IsConfigured ? settings.Supabase.PublishableKey : string.Empty;
+        StartWithWindows = settings.Local.StartWithWindows;
+        StartMinimized = settings.Local.StartMinimized;
+        CloseToTray = settings.Local.CloseToTray;
+        RemoteControlEnabled = settings.Local.RemoteControlEnabled;
+        NotificationsEnabled = settings.Local.NotificationsEnabled;
+        MachineName = settings.Local.MachineName;
+        RemotePort = settings.Local.RemotePort.ToString();
+        LoadUpdateStatus(settings.Local);
+    }
+
+    private void LoadUpdateStatus()
+    {
+        LoadUpdateStatus(AppConfiguration.LoadAll().Local);
+    }
+
+    private void LoadUpdateStatus(LocalAppOptions local)
+    {
+        UpdateStatus = local.LastUpdateStatus ?? "Not checked yet";
+        LastUpdateCheckedDisplay = FormatUpdateTimestamp("Last checked", local.LastUpdateCheckedUtc);
+        LastUpdateInstalledDisplay = FormatUpdateTimestamp("Last installed", local.LastUpdateInstalledUtc);
+    }
+
+    private static string FormatUpdateTimestamp(string label, DateTimeOffset? timestamp)
+    {
+        return timestamp is null
+            ? $"{label}: never"
+            : $"{label}: {timestamp.Value.ToLocalTime():g}";
     }
 }

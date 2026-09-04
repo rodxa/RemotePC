@@ -158,13 +158,24 @@ dotnet restore
 dotnet build
 ```
 
-## Publish
+## Velopack Release
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true
+.\scripts\build-release.ps1 -Version X.Y.Z
+.\scripts\publish-github-release.ps1 -Version X.Y.Z
 ```
 
-Single-file publish is optional; reliability is more important than forcing a one-file output.
+Release flow:
+
+- Bump the app version.
+- Run `.\scripts\build-release.ps1 -Version X.Y.Z`.
+- Run `.\scripts\publish-github-release.ps1 -Version X.Y.Z`.
+- Install from `Releases\RemotePC-*-Setup.exe` or the GitHub Release.
+- Future launches check public GitHub Releases and update through Velopack.
+
+By default the installed app checks `https://github.com/rodxa/RemotePC`. Override that with `REMOTEPC_GITHUB_REPOSITORY_URL`, for example `https://github.com/your-user/your-repo`. Public repositories do not require a token at runtime. Set `REMOTEPC_GITHUB_PRERELEASE=true` to include GitHub prereleases in update checks.
+
+Publishing uses the GitHub CLI from your machine when it is installed. Without `gh`, set `GITHUB_TOKEN` for the publish script only; the script will create/reuse the GitHub Release through the GitHub REST API and upload the Velopack files. The token needs repository contents/release write access.
 
 ## Manual Setup Still Required
 

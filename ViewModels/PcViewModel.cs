@@ -15,6 +15,7 @@ public partial class PcViewModel : ObservableObject
     private readonly PcStatusService _statusService;
     private readonly RustDeskService _rustDeskService;
     private readonly RemoteHostClient _remoteHostClient;
+    private readonly RemoteSessionState _remoteSessionState;
     private readonly CancellationToken _applicationCancellationToken;
     private CancellationTokenSource? _connectCts;
 
@@ -28,6 +29,10 @@ public partial class PcViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     private bool isCurrentMachine;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    private bool isCurrentController;
 
     [ObservableProperty]
     private string statusText = "Checking...";
@@ -47,6 +52,7 @@ public partial class PcViewModel : ObservableObject
         PcStatusService statusService,
         RustDeskService rustDeskService,
         RemoteHostClient remoteHostClient,
+        RemoteSessionState remoteSessionState,
         CancellationToken applicationCancellationToken)
     {
         Device = device;
@@ -54,6 +60,7 @@ public partial class PcViewModel : ObservableObject
         _statusService = statusService;
         _rustDeskService = rustDeskService;
         _remoteHostClient = remoteHostClient;
+        _remoteSessionState = remoteSessionState;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
@@ -67,7 +74,7 @@ public partial class PcViewModel : ObservableObject
 
     public string LastSeenText => Device.LastSeen is null ? "No heartbeat yet" : $"Last seen {Device.LastSeen.Value.LocalDateTime:g}";
 
-    public string ButtonText => IsBusy ? "Cancel" : !Device.Enabled ? "Disabled" : IsCurrentMachine ? "This PC" : "Connect";
+    public string ButtonText => IsBusy ? "Cancel" : !Device.Enabled ? "Disabled" : IsCurrentMachine ? "This PC" : IsCurrentController ? "Controller" : "Connect";
 
     public bool HasDisplayName => !string.IsNullOrWhiteSpace(Device.DisplayName);
 
@@ -88,6 +95,11 @@ public partial class PcViewModel : ObservableObject
     }
 
     partial void OnIsCurrentMachineChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ButtonText));
+    }
+
+    partial void OnIsCurrentControllerChanged(bool value)
     {
         OnPropertyChanged(nameof(ButtonText));
     }
@@ -114,6 +126,7 @@ public partial class PcViewModel : ObservableObject
 
         ErrorMessage = null;
         IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
+        IsCurrentController = IsCurrentControllerNow();
         if (!Device.Enabled)
         {
             IsOnline = false;
@@ -129,6 +142,15 @@ public partial class PcViewModel : ObservableObject
             StatusText = "This PC";
             IsRemoteHostAvailable = true;
             RemoteHostText = "RemotePC: Local";
+            return;
+        }
+
+        if (IsCurrentController)
+        {
+            IsOnline = true;
+            StatusText = "Controller";
+            IsRemoteHostAvailable = false;
+            RemoteHostText = "RemotePC: Active controller";
             return;
         }
 
@@ -177,11 +199,20 @@ public partial class PcViewModel : ObservableObject
             }
 
             IsCurrentMachine = await IsCurrentMachineAsync(cancellationToken);
+            IsCurrentController = IsCurrentControllerNow();
             if (IsCurrentMachine)
             {
                 IsOnline = true;
                 StatusText = "This PC";
                 ErrorMessage = "You are already on this PC.";
+                return;
+            }
+
+            if (IsCurrentController)
+            {
+                IsOnline = true;
+                StatusText = "Controller";
+                ErrorMessage = "This device is currently controlling this PC. Disconnect that RustDesk session before connecting back to it.";
                 return;
             }
 
@@ -270,7 +301,13 @@ public partial class PcViewModel : ObservableObject
 
     private bool CanConnect()
     {
-        return IsBusy || (!IsCurrentMachine && Device.Enabled);
+        return IsBusy || (!IsCurrentMachine && !IsCurrentController && Device.Enabled);
+    }
+
+    private bool IsCurrentControllerNow()
+    {
+        return _rustDeskService.HasIncomingControlSession() &&
+               _remoteSessionState.IsCurrentController(Device.RemoteDeviceId, Device.RustDeskId);
     }
 
     private async Task<bool> IsCurrentMachineAsync(CancellationToken cancellationToken)
@@ -327,6 +364,8 @@ public partial class PcViewModel : ObservableObject
     private async Task OpenRustDeskAsync(CancellationToken cancellationToken)
     {
         StatusText = "Opening RustDesk...";
+        var localRustDeskId = await _rustDeskService.GetLocalRustDeskIdAsync(cancellationToken);
+        await _remoteHostClient.NotifyControllerSessionAsync(Device, localRustDeskId, cancellationToken);
         await _rustDeskService.LaunchAsync(Device.RustDeskId, cancellationToken);
         StatusText = "Online";
     }
@@ -368,6 +407,11 @@ public partial class PcViewModel : ObservableObject
         if (StatusText.Equals("This PC", StringComparison.OrdinalIgnoreCase))
         {
             return "This row matches the computer you are using.";
+        }
+
+        if (StatusText.Equals("Controller", StringComparison.OrdinalIgnoreCase))
+        {
+            return "This row is controlling the current RustDesk session. Disconnect it before connecting back.";
         }
 
         if (StatusText.Equals("Failed to wake", StringComparison.OrdinalIgnoreCase))

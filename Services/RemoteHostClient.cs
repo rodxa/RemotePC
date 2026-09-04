@@ -10,6 +10,7 @@ public sealed class RemoteHostClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan HealthTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan SessionNotifyTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan AuthorizationTimeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(20);
     private readonly HttpClient _httpClient;
@@ -77,6 +78,35 @@ public sealed class RemoteHostClient
     public Task<ActionExecutionResult> ExecuteActionAsync(PcDevice device, long actionId, bool confirmed, string password, CancellationToken cancellationToken)
     {
         return PostCommandAsync(device, $"/api/actions/{actionId}", new RemoteActionRequest { Confirmed = confirmed }, password, cancellationToken);
+    }
+
+    public async Task<bool> NotifyControllerSessionAsync(PcDevice device, string? localRustDeskId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(device.TailscaleHost))
+        {
+            return false;
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(SessionNotifyTimeout);
+
+        try
+        {
+            var payload = JsonSerializer.Serialize(
+                new RemoteControllerSessionRequest
+                {
+                    ClientDeviceId = _credentials.GetOrCreateLocalDeviceId(),
+                    ClientRustDeskId = localRustDeskId
+                },
+                JsonOptions);
+            using var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            using var response = await _httpClient.PostAsync(CreateUri(device, "/api/session/controller"), content, timeoutCts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+        {
+            return false;
+        }
     }
 
     private async Task<RemoteAuthorizationResult> GetTemporaryTokenAsync(PcDevice device, string password, CancellationToken cancellationToken)

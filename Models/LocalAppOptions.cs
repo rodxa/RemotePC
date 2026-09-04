@@ -27,6 +27,15 @@ public sealed class LocalAppOptions
     [JsonPropertyName("RemotePort")]
     public int RemotePort { get; init; } = DefaultRemotePort;
 
+    [JsonPropertyName("LastUpdateCheckedUtc")]
+    public DateTimeOffset? LastUpdateCheckedUtc { get; init; }
+
+    [JsonPropertyName("LastUpdateInstalledUtc")]
+    public DateTimeOffset? LastUpdateInstalledUtc { get; init; }
+
+    [JsonPropertyName("LastUpdateStatus")]
+    public string? LastUpdateStatus { get; init; }
+
     public LocalAppOptions Normalized()
     {
         var machineName = string.IsNullOrWhiteSpace(MachineName)
@@ -41,7 +50,12 @@ public sealed class LocalAppOptions
             RemoteControlEnabled = RemoteControlEnabled,
             NotificationsEnabled = NotificationsEnabled,
             MachineName = machineName,
-            RemotePort = RemotePort is > 0 and <= 65535 ? RemotePort : DefaultRemotePort
+            RemotePort = RemotePort is > 0 and <= 65535 ? RemotePort : DefaultRemotePort,
+            LastUpdateCheckedUtc = LastUpdateCheckedUtc,
+            LastUpdateInstalledUtc = LastUpdateInstalledUtc,
+            LastUpdateStatus = string.IsNullOrWhiteSpace(LastUpdateStatus)
+                ? "Not checked yet"
+                : LastUpdateStatus.Trim()
         };
     }
 }

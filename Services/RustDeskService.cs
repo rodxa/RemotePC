@@ -140,6 +140,48 @@ public sealed class RustDeskService
         }
     }
 
+    public async Task<string?> GetLocalRustDeskIdAsync(CancellationToken cancellationToken)
+    {
+        var executable = FindRustDeskExecutable();
+        if (executable is null)
+        {
+            return null;
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(OnlineCheckTimeout);
+
+        try
+        {
+            return await GetLocalRustDeskIdAsync(executable, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    public bool HasIncomingControlSession()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            return File.Exists(@"\\.\pipe\RustDesk\query_cm");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     public static string NormalizeRustDeskId(string? rustDeskId)
     {
         if (string.IsNullOrWhiteSpace(rustDeskId))

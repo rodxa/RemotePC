@@ -1,4 +1,5 @@
 using Avalonia;
+using Velopack;
 
 namespace RemotePC;
 
@@ -7,6 +8,8 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        VelopackApp.Build().Run();
+
         using var singleInstance = new Services.SingleInstanceCoordinator();
         if (!singleInstance.IsPrimary)
         {

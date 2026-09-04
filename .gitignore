@@ -2,6 +2,8 @@
 bin/
 obj/
 publish/
+artifacts/
+Releases/
 
 # Local configuration
 appsettings.json
@@ -27,3 +29,6 @@ coverage/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+
+.env

@@ -12,6 +12,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly PcStatusService _statusService;
     private readonly RustDeskService _rustDeskService;
     private readonly RemoteHostClient _remoteHostClient;
+    private readonly RemoteSessionState _remoteSessionState;
     private readonly CancellationToken _applicationCancellationToken;
     private CancellationTokenSource? _refreshCts;
 
@@ -27,12 +28,14 @@ public partial class MainWindowViewModel : ObservableObject
         PcStatusService statusService,
         RustDeskService rustDeskService,
         RemoteHostClient remoteHostClient,
+        RemoteSessionState remoteSessionState,
         CancellationToken applicationCancellationToken)
     {
         _supabaseService = supabaseService;
         _statusService = statusService;
         _rustDeskService = rustDeskService;
         _remoteHostClient = remoteHostClient;
+        _remoteSessionState = remoteSessionState;
         _applicationCancellationToken = applicationCancellationToken;
     }
 
@@ -113,6 +116,7 @@ public partial class MainWindowViewModel : ObservableObject
                 _statusService,
                 _rustDeskService,
                 _remoteHostClient,
+                _remoteSessionState,
                 _applicationCancellationToken);
 
             Pcs.Add(pc);
@@ -229,6 +233,7 @@ public partial class MainWindowViewModel : ObservableObject
                     _statusService,
                     _rustDeskService,
                     _remoteHostClient,
+                    _remoteSessionState,
                     _applicationCancellationToken));
             }
 

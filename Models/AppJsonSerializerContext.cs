@@ -4,6 +4,7 @@ namespace RemotePC.Models;
 
 [JsonSerializable(typeof(RemoteHostHealth))]
 [JsonSerializable(typeof(RemoteActionRequest))]
+[JsonSerializable(typeof(RemoteControllerSessionRequest))]
 [JsonSerializable(typeof(ActionExecutionResult))]
 [JsonSerializable(typeof(RemotePasswordRequest))]
 [JsonSerializable(typeof(RemotePasswordResponse))]

@@ -60,6 +60,27 @@ public static class AppConfiguration
         });
     }
 
+    public static void SaveLocal(Func<LocalAppOptions, LocalAppOptions> update)
+    {
+        var current = LoadAll();
+        SaveAll(new AppSettings
+        {
+            Supabase = current.Supabase,
+            Local = update(current.Local.Normalized()).Normalized()
+        });
+    }
+
+    public static bool TrySaveLocal(Func<LocalAppOptions, LocalAppOptions> update)
+    {
+        if (!File.Exists(GetSettingsPath()))
+        {
+            return false;
+        }
+
+        SaveLocal(update);
+        return true;
+    }
+
     public static void SaveAll(AppSettings settings)
     {
         var path = GetSettingsPath();
